@@ -1,0 +1,22 @@
+# Node dependencies
+node_modules
+
+# Next.js build output
+.next
+out
+
+# Build artifacts
+dist
+build
+
+# Env/config
+.env
+.env.local
+.env.*.local
+.vercel
+.turbo
+
+# Misc
+coverage
+*.log
+.DS_Store

@@ -157,6 +157,13 @@ export default function DestinationPage() {
     username: 'root',
     password: '********',
     backupDir: '/var/backups/mq-migrator/',
+    clientId: '',
+    clientSecret: '',
+    tenantId: '',
+    subscriptionId: '',
+    resourceGroup: '',
+    clusterName: '',
+    namespace: '',
   });
 
   const [targetEnv, setTargetEnv] = useState('');
@@ -442,55 +449,125 @@ export default function DestinationPage() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-semibold text-gray-700">Destination MQ Server</label>
-                <input
-                  value={form.server}
-                  onChange={(e) => handleChange('server', e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
-                />
-              </div>
+              {targetEnv !== 'Cloud' ? (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-sm font-semibold text-gray-700">Destination MQ Server</label>
+                    <input
+                      value={form.server}
+                      onChange={(e) => handleChange('server', e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-sm font-semibold text-gray-700">Username</label>
-                  <input
-                    value={form.username}
-                    onChange={(e) => handleChange('username', e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-semibold text-gray-700">Password</label>
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => handleChange('password', e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-sm font-semibold text-gray-700">Username</label>
+                      <input
+                        value={form.username}
+                        onChange={(e) => handleChange('username', e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-semibold text-gray-700">Password</label>
+                      <input
+                        type="password"
+                        value={form.password}
+                        onChange={(e) => handleChange('password', e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                  </div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-semibold text-gray-700">Target Backup Directory</label>
-                <input
-                  value={form.backupDir}
-                  onChange={(e) => handleChange('backupDir', e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
-                />
-              </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-semibold text-gray-700">Target Backup Directory</label>
+                    <input
+                      value={form.backupDir}
+                      onChange={(e) => handleChange('backupDir', e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-4">
+                  <p className="text-sm font-semibold text-gray-800">Cloud Credentials</p>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">Client ID</label>
+                      <input
+                        value={form.clientId}
+                        onChange={(e) => handleChange('clientId', e.target.value)}
+                        placeholder="Client ID"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">Client Secret</label>
+                      <input
+                        type="password"
+                        value={form.clientSecret}
+                        onChange={(e) => handleChange('clientSecret', e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">Tenant ID</label>
+                      <input
+                        value={form.tenantId}
+                        onChange={(e) => handleChange('tenantId', e.target.value)}
+                        placeholder="Tenant ID"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">Subscription ID</label>
+                      <input
+                        value={form.subscriptionId}
+                        onChange={(e) => handleChange('subscriptionId', e.target.value)}
+                        placeholder="Subscription ID"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">Resource Group Name</label>
+                      <input
+                        value={form.resourceGroup}
+                        onChange={(e) => handleChange('resourceGroup', e.target.value)}
+                        placeholder="Resource Group"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">Cluster Name</label>
+                      <input
+                        value={form.clusterName}
+                        onChange={(e) => handleChange('clusterName', e.target.value)}
+                        placeholder="Cluster Name"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-700">Namespace</label>
+                    <input
+                      value={form.namespace}
+                      onChange={(e) => handleChange('namespace', e.target.value)}
+                      placeholder="Namespace"
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                    />
+                  </div>
+                </div>
+              )}
 
             </div>
 
             <div className="mt-6 flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => router.push('/source')}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white px-5 py-3 text-sm font-semibold shadow-sm"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Previous
-              </button>
               <button
                 type="button"
                 onClick={handleTestConnection}

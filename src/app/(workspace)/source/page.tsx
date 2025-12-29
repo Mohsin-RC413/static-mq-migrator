@@ -5,8 +5,6 @@ import { useMemo, useState } from 'react';
 import logo from '../../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 
 type Status = 'ready' | 'warning';
-type ConnectionState = 'untested' | 'connected';
-
 type QueueManager = {
   name: string;
   status: Status;
@@ -133,7 +131,7 @@ const QUEUES: QueueManager[] = [
 ];
 
 export default function SourcePage() {
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionState>('untested');
+  const [connectionStatus] = useState<'untested' | 'connected'>('untested');
   const [backupNotice, setBackupNotice] = useState<{ message: string; tone: 'success' | 'error' | '' }>({
     message: '',
     tone: '',
@@ -185,18 +183,6 @@ export default function SourcePage() {
 
   const viewQueue = (name: string) => {
     setActiveQueue(name);
-  };
-
-  const handleTestConnection = () => {
-    setConnectionStatus('connected');
-    setBackupNotice({ message: '', tone: '' });
-    setLogs((prev) => [
-      `$ Validating credentials for ${form.server} ... OK`,
-      '$ Enumerating Queue Managers ... 4 found',
-      `$ Selected: ${selectedQueues.join(', ') || 'None selected'}`,
-      '$ Waiting for backup. Click "Backup" to start...',
-      ...prev.slice(3),
-    ]);
   };
 
   const handleBackup = () => {
@@ -315,13 +301,6 @@ export default function SourcePage() {
             </div>
 
             <div className="mt-6 flex items-center gap-4">
-              <button
-                type="button"
-                onClick={handleTestConnection}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 text-sm font-semibold shadow-sm"
-              >
-                Test Connection
-              </button>
               <button
                 type="button"
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white px-5 py-3 text-sm font-semibold shadow-sm"

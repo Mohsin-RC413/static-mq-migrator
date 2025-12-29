@@ -19,7 +19,7 @@ const features = [
 
 export function MigrationAnimation() {
   return (
-    <div className="h-full bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center p-12">
+    <div className="h-full bg-gradient-to-br from-black via-neutral-950 to-neutral-900 flex items-center justify-center p-12 font-['Montserrat']">
       <div className="max-w-2xl w-full">
         {/* Title */}
         <motion.div
@@ -28,10 +28,10 @@ export function MigrationAnimation() {
           transition={{ duration: 0.8 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="text-4xl font-bold text-gray-100 mb-4">
             Seamless Queue Migration
           </h2>
-          <p className="text-gray-600 text-lg">
+          <p className="text-gray-300 text-lg">
             Migrate your message queues with zero downtime
           </p>
         </motion.div>
@@ -45,10 +45,10 @@ export function MigrationAnimation() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative"
           >
-            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-blue-200">
-              <Server className="w-16 h-16 text-blue-600 mb-4" />
-              <h3 className="font-bold text-gray-900 mb-2">Source Queue</h3>
-              <p className="text-sm text-gray-600">Legacy Environment</p>
+            <div className="bg-neutral-700/80 rounded-2xl p-8 shadow-2xl border border-neutral-500/60 backdrop-blur">
+              <Server className="w-16 h-16 text-gray-200 mb-4" />
+              <h3 className="font-bold text-gray-100 mb-2">Source Queue</h3>
+              <p className="text-sm text-gray-400">Legacy Environment</p>
               
               {/* Messages */}
               <div className="mt-4 space-y-2">
@@ -63,7 +63,7 @@ export function MigrationAnimation() {
                       repeat: Infinity,
                       repeatDelay: 3
                     }}
-                    className="h-2 bg-blue-400 rounded-full"
+                    className="h-2 bg-gray-400 rounded-full"
                     style={{ width: `${100 - i * 15}%` }}
                   />
                 ))}
@@ -80,7 +80,7 @@ export function MigrationAnimation() {
               transition={{ duration: 0.8, delay: 0.4 }}
               className="relative"
             >
-              <ArrowRight className="w-24 h-24 text-purple-600" strokeWidth={2.5} />
+              <ArrowRight className="w-24 h-24 text-gray-200" strokeWidth={2.5} />
             </motion.div>
 
             {/* Animated Messages Flying Across */}
@@ -102,7 +102,7 @@ export function MigrationAnimation() {
                 className="absolute left-1/2 top-1/2 -translate-y-1/2"
                 style={{ top: `${50 + (i - 1) * 15}%` }}
               >
-                <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg shadow-lg" />
+                <div className="w-8 h-8 bg-gradient-to-r from-gray-400 to-gray-200 rounded-lg shadow-lg" />
               </motion.div>
             ))}
 
@@ -111,15 +111,15 @@ export function MigrationAnimation() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8, delay: 1 }}
-              className="absolute -bottom-12 left-1/2 -translate-x-1/2 bg-white px-4 py-2 rounded-full shadow-md"
+              className="absolute -bottom-12 left-1/2 -translate-x-1/2 bg-neutral-700/80 px-4 py-2 rounded-full shadow-lg border border-neutral-500/60 backdrop-blur"
             >
               <div className="flex items-center gap-2">
                 <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                  className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full"
+                  className="w-4 h-4 border-2 border-gray-200 border-t-transparent rounded-full"
                 />
-                <span className="text-sm font-medium text-gray-700">Migrating...</span>
+                <span className="text-sm font-medium text-gray-100">Migrating...</span>
               </div>
             </motion.div>
           </div>
@@ -131,17 +131,17 @@ export function MigrationAnimation() {
             transition={{ duration: 0.8, delay: 0.3 }}
             className="relative"
           >
-            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-green-200">
-              <Database className="w-16 h-16 text-green-600 mb-4" />
-              <h3 className="font-bold text-gray-900 mb-2">Target Queue</h3>
-              <p className="text-sm text-gray-600">New Environment</p>
+            <div className="bg-neutral-700/80 rounded-2xl p-8 shadow-2xl border border-neutral-500/60 backdrop-blur">
+              <Database className="w-16 h-16 text-gray-200 mb-4" />
+              <h3 className="font-bold text-gray-100 mb-2">Target Queue</h3>
+              <p className="text-sm text-gray-400">New Environment</p>
               
               {/* Success Indicator */}
               <motion.div
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 2 }}
-                className="mt-4 flex items-center gap-2 text-green-600"
+                className="mt-4 flex items-center gap-2 text-gray-200"
               >
                 <CheckCircle2 className="w-5 h-5" />
                 <span className="text-sm font-medium">Ready</span>
@@ -161,10 +161,10 @@ export function MigrationAnimation() {
             <motion.div
               key={label}
               whileHover={{ scale: 1.05 }}
-              className="bg-white rounded-lg p-4 shadow-md"
+              className="bg-neutral-700/70 border border-neutral-500/50 rounded-lg p-4 shadow-md backdrop-blur"
             >
-              <Icon className="w-8 h-8 text-purple-600 mb-2" />
-              <p className="text-sm font-medium text-gray-700">{label}</p>
+              <Icon className="w-8 h-8 text-gray-200 mb-2" />
+              <p className="text-sm font-medium text-gray-100">{label}</p>
             </motion.div>
           ))}
         </motion.div>

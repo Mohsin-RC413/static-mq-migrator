@@ -157,6 +157,18 @@ export default function SourcePage() {
     backupDir: '',
     transferMode: 'local',
   });
+  const [sftpDetails, setSftpDetails] = useState({
+    server: '',
+    username: '',
+    password: '',
+    backupDir: '',
+  });
+  const [scpDetails, setScpDetails] = useState({
+    server: '',
+    username: '',
+    password: '',
+    backupDir: '',
+  });
   const [isTransitioning] = useState(false);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const router = useRouter();
@@ -412,6 +424,100 @@ export default function SourcePage() {
                   Options: Local - Shared-SFTP - Shared-SCP
                 </p>
               </div>
+
+              {form.transferMode === 'shared-sftp' && (
+                <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-4">
+                  <p className="text-sm font-semibold text-gray-800">SFTP Details</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">SFTP Server</label>
+                      <input
+                        value={sftpDetails.server}
+                        onChange={(e) => setSftpDetails((prev) => ({ ...prev, server: e.target.value }))}
+                        placeholder="sftp.example.com:22"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">Username</label>
+                      <input
+                        value={sftpDetails.username}
+                        onChange={(e) => setSftpDetails((prev) => ({ ...prev, username: e.target.value }))}
+                        placeholder="sftp-user"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">Password</label>
+                      <input
+                        type="password"
+                        value={sftpDetails.password}
+                        onChange={(e) => setSftpDetails((prev) => ({ ...prev, password: e.target.value }))}
+                        placeholder="••••••••"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">Target Backup Directory</label>
+                      <input
+                        value={sftpDetails.backupDir}
+                        onChange={(e) => setSftpDetails((prev) => ({ ...prev, backupDir: e.target.value }))}
+                        placeholder="/remote/backups/"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {form.transferMode === 'shared-scp' && (
+                <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-4">
+                  <p className="text-sm font-semibold text-gray-800">SCP Details</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">SCP Server</label>
+                      <input
+                        value={scpDetails.server}
+                        onChange={(e) => setScpDetails((prev) => ({ ...prev, server: e.target.value }))}
+                        placeholder="scp.example.com:22"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">Username</label>
+                      <input
+                        value={scpDetails.username}
+                        onChange={(e) => setScpDetails((prev) => ({ ...prev, username: e.target.value }))}
+                        placeholder="scp-user"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">Password</label>
+                      <input
+                        type="password"
+                        value={scpDetails.password}
+                        onChange={(e) => setScpDetails((prev) => ({ ...prev, password: e.target.value }))}
+                        placeholder="••••••••"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-700">Target Backup Directory</label>
+                      <input
+                        value={scpDetails.backupDir}
+                        onChange={(e) => setScpDetails((prev) => ({ ...prev, backupDir: e.target.value }))}
+                        placeholder="/remote/backups/"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-6 flex items-center gap-4">
@@ -457,19 +563,19 @@ export default function SourcePage() {
                     Provide MQ Source Server Credentials
                   </div>
                 ) : (
-                  <div className="flex-1 flex flex-col gap-4">
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-[1.6fr_1fr_0.7fr] text-xs font-semibold text-gray-500 px-3 py-2">
-                        <span>Queue Manager</span>
-                        <span>Last Backup</span>
-                        <span className="text-right">Report</span>
-                      </div>
-                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                        {QUEUES.map((queue) => {
-                          const checked = selectedQueues.includes(queue.name);
-                          return (
-                            <div
-                              key={queue.name}
+              <div className="flex-1 flex flex-col gap-4">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-[1.6fr_1fr_0.7fr] text-xs font-semibold text-gray-500 px-3 py-2">
+                    <span>Queue Manager</span>
+                    <span>Last Backup</span>
+                    <span className="text-right">Report</span>
+                  </div>
+                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                    {QUEUES.map((queue) => {
+                      const checked = selectedQueues.includes(queue.name);
+                      return (
+                        <div
+                          key={queue.name}
                               className="grid grid-cols-[1.6fr_1fr_0.7fr] items-center bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 hover:border-gray-300"
                             >
                               <div className="flex items-center gap-2">

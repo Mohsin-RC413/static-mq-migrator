@@ -2,6 +2,8 @@
 
 import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import logo from '../../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 
 type Status = 'ready' | 'warning';
@@ -142,7 +144,14 @@ export default function DestinationPage() {
   const [logs, setLogs] = useState<string[]>([
     'Validating credentials for destination ... not tested',
     'Enumerating Queue Managers ... pending',
+    'Queued request for channel sync ... pending',
+    'Fetching TLS cert metadata ... pending',
+    'Preparing backup directory ... pending',
   ]);
+  const [backupDone, setBackupDone] = useState(false);
+  const [testDone, setTestDone] = useState(false);
+  const [migrationDone, setMigrationDone] = useState(false);
+  const router = useRouter();
   const [form, setForm] = useState({
     server: 'mq-dest-01.company.com:1414',
     username: 'root',
@@ -173,6 +182,12 @@ export default function DestinationPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const stored = localStorage.getItem('destinationDropdowns');
+    const backupFlag = localStorage.getItem('backupDone');
+    const testFlag = localStorage.getItem('testDone');
+    const migrateFlag = localStorage.getItem('migrationDone');
+    setBackupDone(backupFlag === 'true');
+    setTestDone(testFlag === 'true');
+    setMigrationDone(migrateFlag === 'true');
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
@@ -241,6 +256,10 @@ export default function DestinationPage() {
   const handleTestConnection = () => {
     setConnectionStatus('connected');
     setBackupNotice({ message: '', tone: '' });
+    setTestDone(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('testDone', 'true');
+    }
     setLogs((prev) => [
       `$ Validating credentials for ${form.server} ... OK`,
       '$ Enumerating Queue Managers ... 4 found',
@@ -250,7 +269,7 @@ export default function DestinationPage() {
     ]);
   };
 
-  const handleBackup = () => {
+  const handleMigrate = () => {
     if (selectedQueues.length === 0) {
       setBackupNotice({
         message: '* Select at least one queue manager for backup.',
@@ -261,13 +280,17 @@ export default function DestinationPage() {
 
     const targetDir = form.backupDir || 'specified directory';
     setBackupNotice({
-      message: `Backup stored at ${targetDir}`,
+      message: `Migration stored at ${targetDir}`,
       tone: 'success',
     });
+    setMigrationDone(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('migrationDone', 'true');
+    }
     setLogs((prev) => [
-      `$ Backup started for: ${selectedQueues.join(', ')}`,
-      `$ Writing backup to: ${targetDir}`,
-      '$ Backup complete (simulated preview).',
+      `$ Migration started for: ${selectedQueues.join(', ')}`,
+      `$ Writing migration artifacts to: ${targetDir}`,
+      '$ Migration complete (simulated preview).',
       ...prev.slice(3),
     ]);
   };
@@ -303,6 +326,39 @@ export default function DestinationPage() {
             <p className="text-gray-600 mt-3">
               Connect to the destination MQ server and configure deployment settings before backup.
             </p>
+          </div>
+        </div>
+
+        {/* Progress checkpoints */}
+        <div className="mt-6 bg-white border border-gray-200 rounded-2xl shadow-sm px-6 py-5">
+            <div className="relative">
+              <div className="absolute left-6 right-6 top-4 h-px bg-gray-200" />
+              <div className="flex justify-between relative">
+                {[
+                  { label: 'Select queues for backup', status: selectedQueues.length ? 'done' : 'pending' },
+                  { label: 'Backup', status: backupDone ? 'done' : 'pending' },
+                  { label: 'Test connection', status: testDone ? 'done' : selectedQueues.length ? 'current' : 'pending' },
+                  { label: 'Select queues for migration', status: selectedQueues.length ? 'done' : 'pending' },
+                  { label: 'Migration', status: migrationDone ? 'done' : 'pending' },
+                ].map((step, idx) => {
+                const pillClass =
+                  step.status === 'current'
+                    ? 'bg-blue-600 text-white'
+                    : step.status === 'done'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-300 text-gray-700';
+                return (
+                  <div key={step.label} className="flex flex-col items-center gap-2">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${pillClass}`}
+                    >
+                      {idx + 1}
+                    </div>
+                    <span className="text-xs font-semibold text-gray-600">{step.label}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -429,16 +485,18 @@ export default function DestinationPage() {
             <div className="mt-6 flex items-center gap-4">
               <button
                 type="button"
+                onClick={() => router.push('/source')}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white px-5 py-3 text-sm font-semibold shadow-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Previous
+              </button>
+              <button
+                type="button"
                 onClick={handleTestConnection}
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 text-sm font-semibold shadow-sm"
               >
                 Test Connection
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white px-5 py-3 text-sm font-semibold shadow-sm"
-              >
-                Next
               </button>
               <span className={`ml-auto text-xs font-semibold px-3 py-1 rounded-full ${statusChip}`}>
                 {statusLabel}
@@ -530,14 +588,14 @@ export default function DestinationPage() {
                 <button
                   type="button"
                   disabled={!hasSelection}
-                  onClick={handleBackup}
+                  onClick={handleMigrate}
                   className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold shadow-sm ${
                     hasSelection
                       ? 'bg-blue-500 hover:bg-blue-600 text-white'
                       : 'bg-gray-300 text-gray-600 cursor-not-allowed'
                   }`}
                 >
-                  Backup
+                  Migrate
                 </button>
               </div>
             </div>
@@ -547,10 +605,16 @@ export default function DestinationPage() {
 
       <div className="bg-neutral-900 text-gray-100 rounded-2xl border border-neutral-800 shadow-inner p-6 text-sm">
         <p className="font-semibold text-white mb-3">Event Logs</p>
-        <div className="space-y-1 font-mono text-[13px] leading-6 text-emerald-300">
+        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
           {logs.map((line, idx) => (
-            <div key={`${line}-${idx}`} className="text-emerald-300">
-              $ {line}
+            <div
+              key={`${line}-${idx}`}
+              className="flex items-start gap-3 bg-neutral-950/60 border border-neutral-800 rounded-lg px-3 py-2"
+            >
+              <span className="text-[11px] text-neutral-500 mt-1 font-semibold">
+                #{String(idx + 1).padStart(2, '0')}
+              </span>
+              <p className="text-emerald-200 font-mono text-sm leading-6">$ {line}</p>
             </div>
           ))}
         </div>

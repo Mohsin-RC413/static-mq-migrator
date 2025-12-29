@@ -1,8 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
@@ -12,6 +13,12 @@ import { MigrationAnimation } from './MigrationAnimation';
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    router.push('/source');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -34,7 +41,7 @@ export function LoginPage() {
             </p>
           </div>
 
-          <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Username Field */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-gray-800">

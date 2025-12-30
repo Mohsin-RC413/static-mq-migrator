@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 type Props = {
@@ -18,6 +18,7 @@ const navItems = [
 
 export default function WorkspaceLayout({ children }: Props) {
   const pathname = usePathname();
+  const router = useRouter();
 
   return (
     <div className="min-h-screen flex bg-gray-50 font-['Montserrat']">
@@ -56,7 +57,18 @@ export default function WorkspaceLayout({ children }: Props) {
         </div>
       </aside>
 
-      <main className="flex-1 bg-gray-50 px-8 py-10">{children}</main>
+      <main className="flex-1 bg-gray-50 px-8 py-10">
+        <div className="flex justify-end mb-6">
+          <button
+            type="button"
+            onClick={() => router.push('/')}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+          >
+            Log out
+          </button>
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

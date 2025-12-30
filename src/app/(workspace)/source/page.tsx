@@ -184,6 +184,7 @@ export default function SourcePage() {
       localStorage.setItem('testDone', 'false');
       localStorage.setItem('migrationDone', 'false');
       localStorage.setItem('sourceConnected', 'false');
+      localStorage.setItem('selectedQueues', JSON.stringify([]));
     }
   };
 
@@ -193,11 +194,22 @@ export default function SourcePage() {
     const storedTest = localStorage.getItem('testDone');
     const storedMigration = localStorage.getItem('migrationDone');
     const storedConnected = localStorage.getItem('sourceConnected');
+    const storedSelected = localStorage.getItem('selectedQueues');
     setBackupDone(stored === 'true');
     setTestDone(storedTest === 'true');
     setMigrationDone(storedMigration === 'true');
     if (storedConnected === 'true') {
       setConnectionStatus('connected');
+    }
+    if (storedSelected) {
+      try {
+        const parsedSel = JSON.parse(storedSelected);
+        if (Array.isArray(parsedSel)) {
+          setSelectedQueues(parsedSel);
+        }
+      } catch {
+        // ignore parse errors
+      }
     }
   }, []);
 
@@ -227,6 +239,9 @@ export default function SourcePage() {
   const toggleQueue = (name: string) => {
     setSelectedQueues((prev) => {
       const next = prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('selectedQueues', JSON.stringify(next));
+      }
       if (next.length === 0) {
         setBackupNotice({
           message: '* Select at least one queue manager for backup.',
@@ -260,6 +275,7 @@ export default function SourcePage() {
     setBackupDone(true);
     if (typeof window !== 'undefined') {
       localStorage.setItem('backupDone', 'true');
+      localStorage.setItem('selectedQueues', JSON.stringify(selectedQueues));
     }
     setLogs((prev) => [
       `$ Backup started for: ${selectedQueues.join(', ')}`,
@@ -323,9 +339,12 @@ export default function SourcePage() {
           <div className="flex justify-between relative">
             {(() => {
               const steps = [
-                { label: 'Provide MQ Server details', done: Boolean(fieldsFilled) },
-                { label: 'Test connection', done: connectionStatus === 'connected' || testDone },
-                { label: 'Select Queue managers for backup', done: selectedQueues.length > 0 },
+                {
+                  label: 'Provide MQ Server details',
+                  done: Boolean(fieldsFilled) || backupDone || testDone || connectionStatus === 'connected',
+                },
+                { label: 'Test connection', done: connectionStatus === 'connected' || testDone || backupDone },
+                { label: 'Select Queue managers for backup', done: selectedQueues.length > 0 || backupDone },
                 { label: 'Backup', done: backupDone },
               ];
               const currentIdx = steps.findIndex((s) => !s.done);

@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 
+import { ArrowLeft, CloudUpload } from 'lucide-react';
 import Image from 'next/image';
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import logo from '../../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 
 type Status = 'ready' | 'warning';
@@ -24,7 +24,7 @@ const QUEUES: QueueManager[] = [
   {
     name: 'QMGR_PROD_A',
     status: 'ready',
-    lastBackup: '—',
+    lastBackup: '-',
     report: 'View',
     version: 'IBM MQ 9.3.2',
     platform: 'RHEL 8 (VMware)',
@@ -57,7 +57,7 @@ const QUEUES: QueueManager[] = [
   {
     name: 'QMGR_ANALYTICS',
     status: 'ready',
-    lastBackup: '—',
+    lastBackup: '-',
     report: 'View',
     version: 'IBM MQ 9.3.2',
     platform: 'RHEL 8 (VMware)',
@@ -68,7 +68,7 @@ const QUEUES: QueueManager[] = [
   {
     name: 'QMGR_DR',
     status: 'ready',
-    lastBackup: '—',
+    lastBackup: '-',
     report: 'View',
     version: 'IBM MQ 9.3.2',
     platform: 'RHEL 8 (VMware)',
@@ -79,7 +79,7 @@ const QUEUES: QueueManager[] = [
   {
     name: 'QMGR_ARCHIVE',
     status: 'ready',
-    lastBackup: '—',
+    lastBackup: '-',
     report: 'View',
     version: 'IBM MQ 9.3.2',
     platform: 'RHEL 8 (VMware)',
@@ -101,7 +101,7 @@ const QUEUES: QueueManager[] = [
   {
     name: 'QMGR_BATCH',
     status: 'ready',
-    lastBackup: '—',
+    lastBackup: '-',
     report: 'View',
     version: 'IBM MQ 9.3.2',
     platform: 'RHEL 8 (VMware)',
@@ -139,8 +139,8 @@ export default function DestinationPage() {
     message: '',
     tone: '',
   });
-  const [selectedQueues, setSelectedQueues] = useState<string[]>(['QMGR_PROD_A', 'QMGR_PROD_B']);
-  const [activeQueue, setActiveQueue] = useState<string>('QMGR_PROD_A');
+  const [sourceSelectedQueues, setSourceSelectedQueues] = useState<string[]>([]);
+  const [destinationSelectedQueues, setDestinationSelectedQueues] = useState<string[]>([]);
   const [logs, setLogs] = useState<string[]>([
     'Validating credentials for destination ... not tested',
     'Enumerating Queue Managers ... pending',
@@ -148,15 +148,15 @@ export default function DestinationPage() {
     'Fetching TLS cert metadata ... pending',
     'Preparing backup directory ... pending',
   ]);
-  const [backupDone, setBackupDone] = useState(false);
   const [testDone, setTestDone] = useState(false);
   const [migrationDone, setMigrationDone] = useState(false);
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
   const router = useRouter();
   const [form, setForm] = useState({
-    server: 'mq-dest-01.company.com:1414',
-    username: 'root',
-    password: '********',
-    backupDir: '/var/backups/mq-migrator/',
+    server: '',
+    username: '',
+    password: '',
+    backupDir: '',
     clientId: '',
     clientSecret: '',
     tenantId: '',
@@ -186,15 +186,41 @@ export default function DestinationPage() {
         ? ['Native HA', 'Multiinstance', 'Standalone']
         : [];
 
+  const mqFieldsFilled =
+    form.server.trim() && form.username.trim() && form.password.trim() && form.backupDir.trim();
+  const cloudFieldsFilled =
+    form.clientId.trim() &&
+    form.clientSecret.trim() &&
+    form.tenantId.trim() &&
+    form.subscriptionId.trim() &&
+    form.resourceGroup.trim() &&
+    form.clusterName.trim() &&
+    form.namespace.trim();
+  const destinationFieldsFilled =
+    targetEnv.trim() &&
+    targetPlatform.trim() &&
+    (targetEnv !== 'Cloud' || (computeModel.trim() && deploymentMode.trim())) &&
+    (targetEnv === 'Cloud' ? cloudFieldsFilled : mqFieldsFilled);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const stored = localStorage.getItem('destinationDropdowns');
-    const backupFlag = localStorage.getItem('backupDone');
-    const testFlag = localStorage.getItem('testDone');
-    const migrateFlag = localStorage.getItem('migrationDone');
-    setBackupDone(backupFlag === 'true');
+    const testFlag = localStorage.getItem('destinationTestDone');
+    const migrateFlag = localStorage.getItem('destinationMigrationDone');
+    const storedSelected = localStorage.getItem('selectedQueues');
     setTestDone(testFlag === 'true');
     setMigrationDone(migrateFlag === 'true');
+    if (storedSelected) {
+      try {
+        const parsedSel = JSON.parse(storedSelected);
+        if (Array.isArray(parsedSel)) {
+          setSourceSelectedQueues(parsedSel);
+          setDestinationSelectedQueues([]);
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
@@ -217,9 +243,9 @@ export default function DestinationPage() {
     );
   }, [targetEnv, targetPlatform, computeModel, deploymentMode]);
 
-  const activeQueueData = useMemo(
-    () => QUEUES.find((q) => q.name === activeQueue) ?? QUEUES[0],
-    [activeQueue],
+  const visibleQueues = useMemo(
+    () => QUEUES.filter((q) => sourceSelectedQueues.includes(q.name)),
+    [sourceSelectedQueues],
   );
 
   const statusChip =
@@ -235,18 +261,31 @@ export default function DestinationPage() {
       : backupNotice.tone === 'error'
         ? 'text-red-600 font-semibold whitespace-nowrap text-right'
         : '';
-  const hasSelection = selectedQueues.length > 0;
+  const hasSelection = destinationSelectedQueues.length > 0;
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const toggleQueue = (name: string) => {
-    setSelectedQueues((prev) => {
-      const next = prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name];
+  const resetProgress = () => {
+    setConnectionStatus('untested');
+    setTestDone(false);
+    setMigrationDone(false);
+    setDestinationSelectedQueues([]);
+    setBackupNotice({ message: '', tone: '' });
+    setShowMigrationModal(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('destinationTestDone', 'false');
+      localStorage.setItem('destinationMigrationDone', 'false');
+    }
+  };
+
+  const toggleDestinationQueue = (name: string) => {
+    setDestinationSelectedQueues((prev) => {
+      const next = prev.includes(name) ? prev.filter((item) => item !== name) : [...prev, name];
       if (next.length === 0) {
         setBackupNotice({
-          message: '* Select at least one queue manager for backup.',
+          message: '* Select at least one queue manager for migration.',
           tone: 'error',
         });
       } else if (backupNotice.tone === 'error') {
@@ -256,46 +295,47 @@ export default function DestinationPage() {
     });
   };
 
-  const viewQueue = (name: string) => {
-    setActiveQueue(name);
-  };
-
   const handleTestConnection = () => {
     setConnectionStatus('connected');
     setBackupNotice({ message: '', tone: '' });
     setTestDone(true);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('testDone', 'true');
+      localStorage.setItem('destinationTestDone', 'true');
     }
     setLogs((prev) => [
       `$ Validating credentials for ${form.server} ... OK`,
       '$ Enumerating Queue Managers ... 4 found',
-      `$ Selected: ${selectedQueues.join(', ') || 'None selected'}`,
-      '$ Waiting for backup. Click "Backup" to start...',
+      `$ Selected: ${destinationSelectedQueues.join(', ') || 'None selected'}`,
+      '$ Waiting for migration. Click "Migrate" to start...',
       ...prev.slice(3),
     ]);
   };
 
   const handleMigrate = () => {
-    if (selectedQueues.length === 0) {
+    if (destinationSelectedQueues.length === 0) {
       setBackupNotice({
-        message: '* Select at least one queue manager for backup.',
+        message: '* Select at least one queue manager for migration.',
         tone: 'error',
       });
       return;
     }
+    setBackupNotice({ message: '', tone: '' });
+    setShowMigrationModal(true);
+  };
 
+  const confirmMigration = () => {
     const targetDir = form.backupDir || 'specified directory';
+    setShowMigrationModal(false);
     setBackupNotice({
       message: `Migration stored at ${targetDir}`,
       tone: 'success',
     });
     setMigrationDone(true);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('migrationDone', 'true');
+      localStorage.setItem('destinationMigrationDone', 'true');
     }
     setLogs((prev) => [
-      `$ Migration started for: ${selectedQueues.join(', ')}`,
+      `$ Migration started for: ${destinationSelectedQueues.join(', ')}`,
       `$ Writing migration artifacts to: ${targetDir}`,
       '$ Migration complete (simulated preview).',
       ...prev.slice(3),
@@ -338,33 +378,48 @@ export default function DestinationPage() {
 
         {/* Progress checkpoints */}
         <div className="mt-6 bg-white border border-gray-200 rounded-2xl shadow-sm px-6 py-5">
-            <div className="relative">
-              <div className="absolute left-6 right-6 top-4 h-px bg-gray-200" />
-              <div className="flex justify-between relative">
-                {[
-                  { label: 'Select queues for backup', status: selectedQueues.length ? 'done' : 'pending' },
-                  { label: 'Backup', status: backupDone ? 'done' : 'pending' },
-                  { label: 'Test connection', status: testDone ? 'done' : selectedQueues.length ? 'current' : 'pending' },
-                  { label: 'Select queues for migration', status: selectedQueues.length ? 'done' : 'pending' },
-                  { label: 'Migration', status: migrationDone ? 'done' : 'pending' },
-                ].map((step, idx) => {
-                const pillClass =
-                  step.status === 'current'
-                    ? 'bg-blue-600 text-white'
-                    : step.status === 'done'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-300 text-gray-700';
-                return (
-                  <div key={step.label} className="flex flex-col items-center gap-2">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${pillClass}`}
-                    >
-                      {idx + 1}
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-sm font-semibold text-gray-700">Progress</div>
+            <button
+              type="button"
+              onClick={resetProgress}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Reset
+            </button>
+          </div>
+          <div className="relative">
+            <div className="absolute left-6 right-6 top-4 h-px bg-gray-200" />
+            <div className="flex justify-between relative">
+              {(() => {
+                const steps = [
+                  { label: 'Provide Destination connection credentials', done: Boolean(destinationFieldsFilled) },
+                  { label: 'Test connection', done: connectionStatus === 'connected' || testDone },
+                  { label: 'Select queue managers for migration', done: destinationSelectedQueues.length > 0 },
+                  { label: 'Migrate', done: migrationDone },
+                ];
+                const currentIdx = steps.findIndex((s) => !s.done);
+
+                return steps.map((step, idx) => {
+                  const isDone = step.done;
+                  const isCurrent = !isDone && idx === currentIdx;
+                  const pillClass = isDone
+                    ? 'bg-black text-white'
+                    : isCurrent
+                      ? 'bg-gray-300 text-gray-700 animate-pulse'
+                      : 'bg-gray-200 text-gray-600';
+                  return (
+                    <div key={step.label} className="flex flex-col items-center gap-2">
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${pillClass}`}
+                      >
+                        {idx + 1}
+                      </div>
+                      <span className="text-xs font-semibold text-gray-600">{step.label}</span>
                     </div>
-                    <span className="text-xs font-semibold text-gray-600">{step.label}</span>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>
@@ -508,7 +563,7 @@ export default function DestinationPage() {
                         type="password"
                         value={form.clientSecret}
                         onChange={(e) => handleChange('clientSecret', e.target.value)}
-                        placeholder="••••••••"
+                        placeholder="***************"
                         className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
                       />
                     </div>
@@ -558,7 +613,7 @@ export default function DestinationPage() {
                     <input
                       value={form.namespace}
                       onChange={(e) => handleChange('namespace', e.target.value)}
-                      placeholder="Namespace"
+                      placeholder="Default"
                       className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
                     />
                   </div>
@@ -587,7 +642,7 @@ export default function DestinationPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-lg font-semibold text-gray-800">Queue Managers</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Select Queue Managers to back up. Click a row to view details.
+                  Select Queue Managers for migration.
                 </p>
               </div>
               {backupNotice.message && (
@@ -599,86 +654,113 @@ export default function DestinationPage() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <div className="grid grid-cols-[1.6fr_1fr_0.7fr] text-xs font-semibold text-gray-500 px-3 py-2">
-                <span>Queue Manager</span>
-                <span>Last Backup</span>
-                <span className="text-right">Report</span>
+            {visibleQueues.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-gray-600 font-semibold bg-white border border-dashed border-gray-300 rounded-xl gap-2 min-h-[240px]">
+                <ArrowLeft className="w-5 h-5 text-gray-500" />
+                No queue managers selected on Source.
               </div>
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                {QUEUES.map((queue) => {
-                  const checked = selectedQueues.includes(queue.name);
-                  return (
-                    <div
-                      key={queue.name}
-                      className="grid grid-cols-[1.6fr_1fr_0.7fr] items-center bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 hover:border-gray-300"
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleQueue(queue.name)}
-                          className="h-4 w-4 accent-gray-500"
-                        />
-                        <span>{queue.name}</span>
-                      </div>
-                      <div className="text-gray-600 text-sm">{queue.lastBackup}</div>
-                      <button
-                        type="button"
-                        onClick={() => viewQueue(queue.name)}
-                        className="text-gray-600 text-sm font-semibold text-right hover:text-gray-700"
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-[1.6fr_1fr_0.7fr] text-xs font-semibold text-gray-500 px-3 py-2">
+                    <span>Queue Manager</span>
+                    <span>Last Backup</span>
+                    <span className="text-right">Report</span>
+                  </div>
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {visibleQueues.map((queue) => (
+                      <div
+                        key={queue.name}
+                        className="grid grid-cols-[1.6fr_1fr_0.7fr] items-center bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 hover:border-gray-300"
                       >
-                        {queue.report}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={destinationSelectedQueues.includes(queue.name)}
+                            onChange={() => toggleDestinationQueue(queue.name)}
+                            className="h-4 w-4 accent-gray-500"
+                          />
+                          <span>{queue.name}</span>
+                        </div>
+                        <div className="text-gray-600 text-sm">{queue.lastBackup}</div>
+                        <button
+                          type="button"
+                          className="text-gray-600 text-sm font-semibold text-right hover:text-gray-700"
+                        >
+                          {queue.report}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="mt-6 rounded-xl bg-white border border-gray-200 p-4 text-sm text-gray-700">
-              <p className="font-semibold text-gray-800 mb-2">Details - {activeQueueData.name}</p>
-              <div className="grid sm:grid-cols-2 gap-3 text-gray-700">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Version</span>
-                  <span>{activeQueueData.version}</span>
+                <div className="mt-6">
+                  <button
+                    type="button"
+                    disabled={!hasSelection}
+                    onClick={handleMigrate}
+                    className={`inline-flex items-center justify-center gap-2 rounded-lg w-full py-4 text-sm font-semibold shadow-sm ${
+                      hasSelection ? 'bg-black hover:bg-gray-900 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                    }`}
+                  >
+                    <CloudUpload className="w-4 h-4" />
+                    Migrate
+                  </button>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Platform</span>
-                  <span>{activeQueueData.platform}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Channels</span>
-                  <span>{activeQueueData.channels}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Queues</span>
-                  <span>{activeQueueData.queues}</span>
-                </div>
-                <div className="flex justify-between sm:col-span-2">
-                  <span className="text-gray-500">Security</span>
-                  <span>{activeQueueData.security}</span>
-                </div>
-              </div>
+              </>
+            )}
 
-              <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
-                  disabled={!hasSelection}
-                  onClick={handleMigrate}
-                  className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold shadow-sm ${
-                    hasSelection
-                      ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                      : 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                  }`}
-                >
-                  Migrate
-                </button>
-              </div>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => router.push('/source')}
+                className="inline-flex items-center justify-center gap-2 rounded-lg w-full py-3 text-sm font-semibold shadow-sm bg-black hover:bg-gray-900 text-white"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Go to Source
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {showMigrationModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-gray-800">Confirm Migration</h3>
+            <p className="text-sm text-gray-700">
+              You are about to migrate the selected queue managers to the destination environment.
+            </p>
+            <p className="text-sm text-gray-700">
+              Migration output: <span className="font-semibold">{form.backupDir || 'specified directory'}</span>
+            </p>
+            <div className="text-sm text-gray-700">
+              <p className="font-semibold mb-1">Queue Managers:</p>
+              <ul className="list-disc list-inside space-y-1">
+                {destinationSelectedQueues.map((q) => (
+                  <li key={q}>{q}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowMigrationModal(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmMigration}
+                className="px-4 py-2 rounded-lg bg-black hover:bg-gray-900 text-white text-sm font-semibold"
+              >
+                Yes, Migrate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-neutral-900 text-gray-100 rounded-2xl border border-neutral-800 shadow-inner p-6 text-sm">
         <p className="font-semibold text-white mb-3">Event Logs</p>

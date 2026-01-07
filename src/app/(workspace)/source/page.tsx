@@ -1,139 +1,21 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link2, ArrowLeft, CloudUpload } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import logo from '../../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 
-type Status = 'ready' | 'warning';
 type QueueManager = {
   name: string;
-  status: Status;
-  lastBackup: string;
-  report: string;
-  version: string;
-  platform: string;
-  channels: string;
-  queues: string;
-  security: string;
+  state: string;
 };
 
-const QUEUES: QueueManager[] = [
-  {
-    name: 'QMGR_PROD_A',
-    status: 'ready',
-    lastBackup: '—',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '42 defined - 3 stopped',
-    queues: '1,284 local - 17 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_PROD_B',
-    status: 'ready',
-    lastBackup: 'Today 09:12',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '38 defined - 2 stopped',
-    queues: '1,102 local - 14 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_PAYMENTS',
-    status: 'warning',
-    lastBackup: 'Yesterday',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '42 defined - 3 stopped',
-    queues: '1,284 local - 17 remote',
-    security: 'CHLAUTH enabled - TLS required - error',
-  },
-  {
-    name: 'QMGR_ANALYTICS',
-    status: 'ready',
-    lastBackup: '—',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '30 defined - 1 stopped',
-    queues: '856 local - 9 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_DR',
-    status: 'ready',
-    lastBackup: '—',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '28 defined - 1 stopped',
-    queues: '612 local - 8 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_ARCHIVE',
-    status: 'ready',
-    lastBackup: '—',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '22 defined - 0 stopped',
-    queues: '420 local - 5 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_TEST',
-    status: 'warning',
-    lastBackup: 'Last week',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '18 defined - 2 stopped',
-    queues: '380 local - 4 remote',
-    security: 'CHLAUTH enabled - TLS required - error',
-  },
-  {
-    name: 'QMGR_BATCH',
-    status: 'ready',
-    lastBackup: '—',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '25 defined - 1 stopped',
-    queues: '512 local - 6 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_EDGE',
-    status: 'ready',
-    lastBackup: 'Yesterday',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '30 defined - 1 stopped',
-    queues: '744 local - 9 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_EVENTS',
-    status: 'warning',
-    lastBackup: 'Today 07:10',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '20 defined - 0 stopped',
-    queues: '590 local - 7 remote',
-    security: 'CHLAUTH enabled - TLS required - error',
-  },
-];
 
 export default function SourcePage() {
   const [connectionStatus, setConnectionStatus] = useState<'untested' | 'connected'>('untested');
+  const [connectionMessage, setConnectionMessage] = useState('');
+  const [queueManagers, setQueueManagers] = useState<QueueManager[]>([]);
   const [backupNotice, setBackupNotice] = useState<{ message: string; tone: 'success' | 'error' | '' }>({
     message: '',
     tone: '',
@@ -142,7 +24,6 @@ export default function SourcePage() {
   const [testDone, setTestDone] = useState(false);
   const [migrationDone, setMigrationDone] = useState(false);
   const [selectedQueues, setSelectedQueues] = useState<string[]>([]);
-  const [activeQueue, setActiveQueue] = useState<string>('QMGR_PROD_A');
   const [logs, setLogs] = useState<string[]>([
     'Validating credentials for mq-prod-01.company.com:1414 ... not tested',
     'Enumerating Queue Managers ... pending',
@@ -253,10 +134,67 @@ export default function SourcePage() {
     }
   }, []);
 
-  const activeQueueData = useMemo(
-    () => QUEUES.find((q) => q.name === activeQueue) ?? QUEUES[0],
-    [activeQueue],
-  );
+  useEffect(() => {
+    if (connectionStatus !== 'connected') {
+      setQueueManagers([]);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const fetchQueueManagers = async () => {
+      try {
+        const accessToken =
+          typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+        const response = await fetch('http://192.168.18.35:8080/v1/get-all-running-mq', {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          signal: controller.signal,
+        });
+        const responseText = await response.text();
+        let data: unknown = null;
+
+        try {
+          data = responseText ? JSON.parse(responseText) : null;
+        } catch (parseError) {
+          console.warn('Queue manager response was not JSON:', parseError);
+          data = null;
+        }
+
+        if (Array.isArray(data)) {
+          const mapped = data
+            .map((item) => {
+              if (!item || typeof item !== 'object') {
+                return null;
+              }
+              const record = item as { name?: string; state?: string };
+              if (!record.name) {
+                return null;
+              }
+              return {
+                name: String(record.name),
+                state: String(record.state ?? ''),
+              };
+            })
+            .filter(Boolean) as QueueManager[];
+          setQueueManagers(mapped);
+        } else {
+          setQueueManagers([]);
+        }
+      } catch (error) {
+        if ((error as { name?: string }).name !== 'AbortError') {
+          console.error('Queue manager fetch error:', error);
+        }
+      }
+    };
+
+    fetchQueueManagers();
+
+    return () => controller.abort();
+  }, [connectionStatus]);
 
   const baseFieldsFilled =
     form.server.trim() && form.username.trim() && form.password.trim() && form.backupDir.trim();
@@ -307,11 +245,7 @@ export default function SourcePage() {
     });
   };
 
-  const viewQueue = (name: string) => {
-    setActiveQueue(name);
-  };
-
-  const handleBackup = () => {
+  const handleBackup = async () => {
     if (selectedQueues.length === 0) {
       setBackupNotice({
         message: '* Select at least one queue manager for backup.',
@@ -320,23 +254,82 @@ export default function SourcePage() {
       return;
     }
 
-    const targetDir = form.backupDir || 'specified directory';
-    setBackupNotice({
-      message: `Backup stored at ${targetDir}`,
-      tone: 'success',
-    });
-    setBackupDone(true);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('backupDone', 'true');
-      localStorage.setItem('selectedQueues', JSON.stringify(selectedQueues));
+    const transferType =
+      form.transferMode === 'shared-sftp'
+        ? 'SFTP'
+        : form.transferMode === 'shared-scp'
+          ? 'SCP'
+          : null;
+    const payload = {
+      mqNames: selectedQueues,
+      transferType,
+    };
+
+    try {
+      const accessToken =
+        typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      const response = await fetch('http://192.168.18.35:8080/v1/backup', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+      const responseText = await response.text();
+      let data: unknown = null;
+
+      try {
+        data = responseText ? JSON.parse(responseText) : null;
+      } catch (parseError) {
+        console.warn('Backup response was not JSON:', parseError);
+        data = null;
+      }
+
+      const responseRecord = data && typeof data === 'object' ? (data as {
+        responseCode?: string;
+        responseMsg?: string;
+        message?: string;
+      }) : null;
+      const responseMsg = responseRecord?.responseMsg ? String(responseRecord.responseMsg) : '';
+      const responseCode = responseRecord?.responseCode ? String(responseRecord.responseCode) : '';
+      const isSuccess = responseMsg.toLowerCase() === 'success' || responseCode === '00';
+      const message = responseRecord?.message
+        ? String(responseRecord.message)
+        : isSuccess
+          ? 'Backup completed successfully.'
+          : 'Backup failed.';
+
+      if (isSuccess) {
+        setBackupNotice({ message, tone: 'success' });
+        setBackupDone(true);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('backupDone', 'true');
+          localStorage.setItem('selectedQueues', JSON.stringify(selectedQueues));
+        }
+        setLogs((prev) => [
+          `$ Backup started for: ${selectedQueues.join(', ')}`,
+          `$ Transfer type: ${transferType ?? 'Local'}`,
+          `$ ${message}`,
+          ...prev.slice(3),
+        ]);
+        setShowBackupModal(true);
+      } else {
+        setBackupNotice({ message, tone: 'error' });
+        setBackupDone(false);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('backupDone', 'false');
+        }
+      }
+    } catch (error) {
+      setBackupNotice({ message: 'Backup failed.', tone: 'error' });
+      setBackupDone(false);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('backupDone', 'false');
+      }
+      console.error('Backup error:', error);
     }
-    setLogs((prev) => [
-      `$ Backup started for: ${selectedQueues.join(', ')}`,
-      `$ Writing backup to: ${targetDir}`,
-      '$ Backup complete (simulated preview).',
-      ...prev.slice(3),
-    ]);
-    setShowBackupModal(true);
   };
 
   const noticeClasses =
@@ -367,22 +360,113 @@ export default function SourcePage() {
         : 'bg-gray-200 text-gray-600';
   };
 
-  const handleConnectToggle = () => {
-    const nextStatus = connectionStatus === 'connected' ? 'untested' : 'connected';
-    setConnectionStatus(nextStatus);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('sourceConnected', nextStatus === 'connected' ? 'true' : 'false');
-      if (nextStatus === 'connected') {
-        localStorage.setItem(sourceFormKey, JSON.stringify(form));
-        localStorage.setItem(sourceSftpKey, JSON.stringify(sftpDetails));
-        localStorage.setItem(sourceScpKey, JSON.stringify(scpDetails));
-      } else {
+  const handleConnectToggle = async () => {
+    const isDisconnecting = connectionStatus === 'connected';
+
+    if (isDisconnecting) {
+      setConnectionStatus('untested');
+      setConnectionMessage('');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sourceConnected', 'false');
         localStorage.removeItem(sourceFormKey);
         localStorage.removeItem(sourceSftpKey);
         localStorage.removeItem(sourceScpKey);
         localStorage.setItem('selectedQueues', JSON.stringify([]));
         setSelectedQueues([]);
       }
+      return;
+    }
+
+    const payload: {
+      source: { server: string; user: string; password: string };
+      destination?: { server: string; user: string; password: string };
+    } = {
+      source: {
+        server: form.server.trim(),
+        user: form.username.trim(),
+        password: form.password,
+      },
+    };
+
+    if (form.transferMode === 'shared-sftp') {
+      payload.destination = {
+        server: sftpDetails.server.trim(),
+        user: sftpDetails.username.trim(),
+        password: sftpDetails.password,
+      };
+    } else if (form.transferMode === 'shared-scp') {
+      payload.destination = {
+        server: scpDetails.server.trim(),
+        user: scpDetails.username.trim(),
+        password: scpDetails.password,
+      };
+    }
+
+    console.log('Store server credentials request:', payload);
+
+    try {
+      const accessToken =
+        typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      const response = await fetch('http://192.168.18.35:8080/v1/store-server-cred', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+      const responseText = await response.text();
+      let data: unknown = null;
+
+      try {
+        data = responseText ? JSON.parse(responseText) : null;
+      } catch (parseError) {
+        console.warn('Store server credentials response was not JSON:', parseError);
+        data = null;
+      }
+
+      console.log('Store server credentials response:', data);
+
+      let isSuccess = false;
+      let message = 'Connection not successful';
+
+      if (data && typeof data === 'object') {
+        const record = data as {
+          responseCode?: string;
+          responseMsg?: string;
+          message?: string;
+        };
+        const responseCode = record.responseCode ? String(record.responseCode) : '';
+        if (responseCode === '00') {
+          isSuccess = true;
+        }
+        const responseMessage = record.message ?? record.responseMsg;
+        if (responseMessage) {
+          message = String(responseMessage);
+        }
+      }
+
+      setConnectionMessage(message);
+      if (isSuccess) {
+        setConnectionStatus('connected');
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('sourceConnected', 'true');
+          localStorage.setItem(sourceFormKey, JSON.stringify(form));
+          localStorage.setItem(sourceSftpKey, JSON.stringify(sftpDetails));
+          localStorage.setItem(sourceScpKey, JSON.stringify(scpDetails));
+        }
+      } else if (typeof window !== 'undefined') {
+        localStorage.setItem('sourceConnected', 'false');
+        setConnectionStatus('untested');
+      }
+    } catch (error) {
+      setConnectionStatus('untested');
+      setConnectionMessage('Connection not successful');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sourceConnected', 'false');
+      }
+      console.error('Store server credentials error:', error);
     }
   };
 
@@ -636,6 +720,9 @@ export default function SourcePage() {
                 <Link2 className="w-4 h-4" />
                 {connectionStatus === 'connected' ? 'Disconnect' : 'Connect'}
               </button>
+              {connectionMessage ? (
+                <span className="text-xs font-semibold text-gray-600">{connectionMessage}</span>
+              ) : null}
               <span className={`ml-auto text-xs font-semibold px-3 py-1 rounded-full ${statusChip}`}>
                 {statusLabel}
               </span>
@@ -678,11 +765,11 @@ export default function SourcePage() {
                 <div className="space-y-2">
                   <div className="grid grid-cols-[1.6fr_1fr_0.7fr] text-xs font-semibold text-gray-500 px-3 py-2">
                     <span>Queue Manager</span>
-                    <span>Last Backup</span>
+                    <span>State</span>
                     <span className="text-right">Report</span>
                   </div>
                   <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    {QUEUES.map((queue) => {
+                    {queueManagers.map((queue) => {
                       const checked = selectedQueues.includes(queue.name);
                       return (
                         <div
@@ -698,13 +785,12 @@ export default function SourcePage() {
                                 />
                                 <span>{queue.name}</span>
                               </div>
-                              <div className="text-gray-600 text-sm">{queue.lastBackup}</div>
+                              <div className="text-gray-600 text-sm">{queue.state || 'Unknown'}</div>
                               <button
                                 type="button"
-                                onClick={() => viewQueue(queue.name)}
                                 className="text-gray-600 text-sm font-semibold text-right hover:text-gray-700"
                               >
-                                {queue.report}
+                                View
                               </button>
                             </div>
                           );

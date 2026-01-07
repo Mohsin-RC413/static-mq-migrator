@@ -19,6 +19,15 @@ const navItems = [
 export default function WorkspaceLayout({ children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('sourceForm');
+      localStorage.removeItem('sourceSftp');
+      localStorage.removeItem('sourceScp');
+    }
+    router.push('/');
+  };
 
   return (
     <div className="min-h-screen flex bg-gray-50 font-['Montserrat']">
@@ -61,7 +70,7 @@ export default function WorkspaceLayout({ children }: Props) {
         <div className="flex justify-end mb-6">
           <button
             type="button"
-            onClick={() => router.push('/')}
+            onClick={handleLogout}
             className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
           >
             Log out

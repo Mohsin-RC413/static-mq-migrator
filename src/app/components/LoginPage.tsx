@@ -13,11 +13,60 @@ import { MigrationAnimation } from './MigrationAnimation';
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    router.push('/source');
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('http://192.168.18.35:8080/auth/login', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+      const responseText = await response.text();
+      let data: unknown = null;
+
+      try {
+        data = responseText ? JSON.parse(responseText) : null;
+      } catch (parseError) {
+        console.warn('Login response was not JSON:', parseError);
+        data = responseText;
+      }
+
+      console.log('Login response:', data);
+
+      if (
+        response.ok &&
+        data &&
+        typeof data === 'object' &&
+        'success' in data &&
+        'accessToken' in data &&
+        (data as { success?: boolean }).success &&
+        (data as { accessToken?: string | null }).accessToken
+      ) {
+        localStorage.setItem(
+          'accessToken',
+          (data as { accessToken: string }).accessToken
+        );
+        router.push('/source');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -52,6 +101,8 @@ export function LoginPage() {
                   type="text"
                   placeholder="Enter your username"
                   className="w-full pr-10 border border-gray-300 bg-white focus-visible:border-gray-400 focus-visible:ring-1 focus-visible:ring-gray-400"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
                 />
               </div>
             </div>
@@ -66,6 +117,8 @@ export function LoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
                   className="w-full pr-10 border border-gray-300 bg-white focus-visible:border-gray-400 focus-visible:ring-1 focus-visible:ring-gray-400"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
                 />
                 <button
                   type="button"
@@ -101,8 +154,9 @@ export function LoginPage() {
             <Button
               type="submit"
               className="w-full bg-black hover:bg-neutral-800 text-gray-200 py-6 flex items-center justify-center relative"
+              disabled={isSubmitting}
             >
-              <span className="mx-auto">Login</span>
+              <span className="mx-auto">{isSubmitting ? 'Logging in...' : 'Login'}</span>
               <ArrowRight className="h-4 w-4 text-gray-300 absolute right-4" />
             </Button>
 

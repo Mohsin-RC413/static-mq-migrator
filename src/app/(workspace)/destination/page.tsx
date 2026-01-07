@@ -152,6 +152,10 @@ export default function DestinationPage() {
   const [migrationDone, setMigrationDone] = useState(false);
   const [showMigrationModal, setShowMigrationModal] = useState(false);
   const router = useRouter();
+  const destinationFormKey = 'destinationForm';
+  const destinationDropdownKey = 'destinationDropdowns';
+  const destinationQueuesKey = 'destinationSelectedQueues';
+  const destinationConnectedKey = 'destinationConnected';
   const [form, setForm] = useState({
     server: '',
     username: '',
@@ -204,12 +208,16 @@ export default function DestinationPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const stored = localStorage.getItem('destinationDropdowns');
+    const stored = localStorage.getItem(destinationDropdownKey);
     const testFlag = localStorage.getItem('destinationTestDone');
     const migrateFlag = localStorage.getItem('destinationMigrationDone');
     const storedSelected = localStorage.getItem('selectedQueues');
+    const storedConnected = localStorage.getItem(destinationConnectedKey);
     setTestDone(testFlag === 'true');
     setMigrationDone(migrateFlag === 'true');
+    if (storedConnected === 'true') {
+      setConnectionStatus('connected');
+    }
     if (storedSelected) {
       try {
         const parsedSel = JSON.parse(storedSelected);
@@ -221,27 +229,43 @@ export default function DestinationPage() {
         // ignore parse errors
       }
     }
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        const { targetEnv: e = '', targetPlatform: p = '', computeModel: c = '', deploymentMode: d = '' } = parsed;
-        setTargetEnv(e);
-        setTargetPlatform(p);
-        setComputeModel(c);
-        setDeploymentMode(d);
-      } catch {
-        // ignore malformed storage
+    if (storedConnected === 'true') {
+      const storedForm = localStorage.getItem(destinationFormKey);
+      const storedQueues = localStorage.getItem(destinationQueuesKey);
+      if (storedForm) {
+        try {
+          const parsed = JSON.parse(storedForm);
+          if (parsed && typeof parsed === 'object') {
+            setForm((prev) => ({ ...prev, ...parsed }));
+          }
+        } catch {
+          // ignore malformed storage
+        }
+      }
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const { targetEnv: e = '', targetPlatform: p = '', computeModel: c = '', deploymentMode: d = '' } = parsed;
+          setTargetEnv(e);
+          setTargetPlatform(p);
+          setComputeModel(c);
+          setDeploymentMode(d);
+        } catch {
+          // ignore malformed storage
+        }
+      }
+      if (storedQueues) {
+        try {
+          const parsedQueues = JSON.parse(storedQueues);
+          if (Array.isArray(parsedQueues)) {
+            setDestinationSelectedQueues(parsedQueues);
+          }
+        } catch {
+          // ignore parse errors
+        }
       }
     }
   }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(
-      'destinationDropdowns',
-      JSON.stringify({ targetEnv, targetPlatform, computeModel, deploymentMode }),
-    );
-  }, [targetEnv, targetPlatform, computeModel, deploymentMode]);
 
   const visibleQueues = useMemo(
     () => QUEUES.filter((q) => sourceSelectedQueues.includes(q.name)),
@@ -262,6 +286,7 @@ export default function DestinationPage() {
         ? 'text-red-600 font-semibold whitespace-nowrap text-right'
         : '';
   const hasSelection = destinationSelectedQueues.length > 0;
+  const canMigrate = connectionStatus === 'connected' && hasSelection;
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -291,6 +316,9 @@ export default function DestinationPage() {
       } else if (backupNotice.tone === 'error') {
         setBackupNotice({ message: '', tone: '' });
       }
+      if (typeof window !== 'undefined' && connectionStatus === 'connected') {
+        localStorage.setItem(destinationQueuesKey, JSON.stringify(next));
+      }
       return next;
     });
   };
@@ -301,6 +329,13 @@ export default function DestinationPage() {
     setTestDone(true);
     if (typeof window !== 'undefined') {
       localStorage.setItem('destinationTestDone', 'true');
+      localStorage.setItem(destinationConnectedKey, 'true');
+      localStorage.setItem(destinationFormKey, JSON.stringify(form));
+      localStorage.setItem(
+        destinationDropdownKey,
+        JSON.stringify({ targetEnv, targetPlatform, computeModel, deploymentMode }),
+      );
+      localStorage.setItem(destinationQueuesKey, JSON.stringify(destinationSelectedQueues));
     }
     setLogs((prev) => [
       `$ Validating credentials for ${form.server} ... OK`,
@@ -312,6 +347,9 @@ export default function DestinationPage() {
   };
 
   const handleMigrate = () => {
+    if (connectionStatus !== 'connected') {
+      return;
+    }
     if (destinationSelectedQueues.length === 0) {
       setBackupNotice({
         message: '* Select at least one queue manager for migration.',
@@ -697,10 +735,10 @@ export default function DestinationPage() {
                 <div className="mt-6">
                   <button
                     type="button"
-                    disabled={!hasSelection}
+                    disabled={!canMigrate}
                     onClick={handleMigrate}
                     className={`inline-flex items-center justify-center gap-2 rounded-lg w-full py-4 text-sm font-semibold shadow-sm ${
-                      hasSelection ? 'bg-black hover:bg-gray-900 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                      canMigrate ? 'bg-black hover:bg-gray-900 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'
                     }`}
                   >
                     <CloudUpload className="w-4 h-4" />

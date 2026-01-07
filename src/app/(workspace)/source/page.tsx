@@ -169,6 +169,9 @@ export default function SourcePage() {
     password: '',
     backupDir: '',
   });
+  const sourceFormKey = 'sourceForm';
+  const sourceSftpKey = 'sourceSftp';
+  const sourceScpKey = 'sourceScp';
   const [isTransitioning] = useState(false);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const router = useRouter();
@@ -213,17 +216,67 @@ export default function SourcePage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedForm = localStorage.getItem(sourceFormKey);
+    const storedSftp = localStorage.getItem(sourceSftpKey);
+    const storedScp = localStorage.getItem(sourceScpKey);
+    if (storedForm) {
+      try {
+        const parsed = JSON.parse(storedForm);
+        if (parsed && typeof parsed === 'object') {
+          setForm((prev) => ({ ...prev, ...parsed }));
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+    if (storedSftp) {
+      try {
+        const parsed = JSON.parse(storedSftp);
+        if (parsed && typeof parsed === 'object') {
+          setSftpDetails((prev) => ({ ...prev, ...parsed }));
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+    if (storedScp) {
+      try {
+        const parsed = JSON.parse(storedScp);
+        if (parsed && typeof parsed === 'object') {
+          setScpDetails((prev) => ({ ...prev, ...parsed }));
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+  }, []);
+
   const activeQueueData = useMemo(
     () => QUEUES.find((q) => q.name === activeQueue) ?? QUEUES[0],
     [activeQueue],
   );
 
+  const baseFieldsFilled =
+    form.server.trim() && form.username.trim() && form.password.trim() && form.backupDir.trim();
+  const sftpFieldsFilled =
+    sftpDetails.server.trim() &&
+    sftpDetails.username.trim() &&
+    sftpDetails.password.trim() &&
+    sftpDetails.backupDir.trim();
+  const scpFieldsFilled =
+    scpDetails.server.trim() &&
+    scpDetails.username.trim() &&
+    scpDetails.password.trim() &&
+    scpDetails.backupDir.trim();
   const fieldsFilled =
-    form.server.trim() &&
-    form.username.trim() &&
-    form.password.trim() &&
-    form.backupDir.trim() &&
-    form.transferMode.trim();
+    baseFieldsFilled &&
+    (form.transferMode === 'shared-sftp'
+      ? sftpFieldsFilled
+      : form.transferMode === 'shared-scp'
+        ? scpFieldsFilled
+        : form.transferMode.trim());
 
   const statusChip =
     connectionStatus === 'connected'
@@ -293,12 +346,43 @@ export default function SourcePage() {
         ? 'text-red-600 font-semibold whitespace-nowrap text-right'
         : '';
   const hasSelection = selectedQueues.length > 0;
+  const requirementSteps = [
+    {
+      label: 'Provide MQ Server details',
+      done: Boolean(fieldsFilled) || backupDone || testDone || connectionStatus === 'connected',
+    },
+    { label: 'Test connection', done: connectionStatus === 'connected' || testDone || backupDone },
+    { label: 'Select Queue managers for backup', done: selectedQueues.length > 0 || backupDone },
+    { label: 'Backup', done: backupDone },
+  ];
+  const currentRequirementIndex = requirementSteps.findIndex((step) => !step.done);
+  const getRequirementBadgeClass = (index: number) => {
+    const step = requirementSteps[index];
+    const isDone = Boolean(step?.done);
+    const isCurrent = !isDone && currentRequirementIndex === index;
+    return isDone
+      ? 'bg-black text-white'
+      : isCurrent
+        ? 'bg-gray-300 text-gray-700 animate-pulse'
+        : 'bg-gray-200 text-gray-600';
+  };
 
   const handleConnectToggle = () => {
     const nextStatus = connectionStatus === 'connected' ? 'untested' : 'connected';
     setConnectionStatus(nextStatus);
     if (typeof window !== 'undefined') {
       localStorage.setItem('sourceConnected', nextStatus === 'connected' ? 'true' : 'false');
+      if (nextStatus === 'connected') {
+        localStorage.setItem(sourceFormKey, JSON.stringify(form));
+        localStorage.setItem(sourceSftpKey, JSON.stringify(sftpDetails));
+        localStorage.setItem(sourceScpKey, JSON.stringify(scpDetails));
+      } else {
+        localStorage.removeItem(sourceFormKey);
+        localStorage.removeItem(sourceSftpKey);
+        localStorage.removeItem(sourceScpKey);
+        localStorage.setItem('selectedQueues', JSON.stringify([]));
+        setSelectedQueues([]);
+      }
     }
   };
 
@@ -334,24 +418,12 @@ export default function SourcePage() {
               Reset
             </button>
         </div>
-        <div className="relative">
-          <div className="absolute left-6 right-6 top-4 h-px bg-gray-200" />
-          <div className="flex justify-between relative">
-            {(() => {
-              const steps = [
-                {
-                  label: 'Provide MQ Server details',
-                  done: Boolean(fieldsFilled) || backupDone || testDone || connectionStatus === 'connected',
-                },
-                { label: 'Test connection', done: connectionStatus === 'connected' || testDone || backupDone },
-                { label: 'Select Queue managers for backup', done: selectedQueues.length > 0 || backupDone },
-                { label: 'Backup', done: backupDone },
-              ];
-              const currentIdx = steps.findIndex((s) => !s.done);
-
-              return steps.map((step, idx) => {
+          <div className="relative">
+            <div className="absolute left-6 right-6 top-4 h-px bg-gray-200" />
+            <div className="flex justify-between relative">
+              {requirementSteps.map((step, idx) => {
                 const isDone = step.done;
-                const isCurrent = !isDone && idx === currentIdx;
+                const isCurrent = !isDone && currentRequirementIndex === idx;
                 const pillClass = isDone
                   ? 'bg-black text-white'
                   : isCurrent
@@ -367,15 +439,21 @@ export default function SourcePage() {
                     <span className="text-xs font-semibold text-gray-600">{step.label}</span>
                   </div>
                 );
-              });
-            })()}
+              })}
+            </div>
           </div>
-        </div>
       </div>
 
         <div className="grid md:grid-cols-2 gap-6 mt-8">
           {/* Source Connection Card */}
           <div className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm flex flex-col min-h-[520px]">
+            <div className="mb-3">
+              <span
+                className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(0)}`}
+              >
+                Requirement 1: Provide MQ Server details
+              </span>
+            </div>
             <div className="flex items-start gap-2">
               <div className="flex-1">
                 <p className="text-lg font-semibold text-gray-800">Source Connection</p>
@@ -539,7 +617,13 @@ export default function SourcePage() {
               )}
             </div>
 
-            <div className="mt-6 flex items-center gap-4">
+            <div className="mt-6">
+              <span
+                className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 mb-3 ${getRequirementBadgeClass(1)}`}
+              >
+                Requirement 2: Test connection
+              </span>
+              <div className="flex items-center gap-4">
               <button
                 type="button"
                 onClick={handleConnectToggle}
@@ -555,11 +639,19 @@ export default function SourcePage() {
               <span className={`ml-auto text-xs font-semibold px-3 py-1 rounded-full ${statusChip}`}>
                 {statusLabel}
               </span>
+              </div>
             </div>
           </div>
 
           {/* Queue Managers Card */}
           <div className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm flex flex-col min-h-[520px]">
+            <div className="mb-3">
+              <span
+                className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(2)}`}
+              >
+                Requirement 3: Select queue managers for backup
+              </span>
+            </div>
             <div className="flex flex-col gap-2 mb-4">
               <div className="flex-1 min-w-0">
                 <p className="text-lg font-semibold text-gray-800">Queue Managers</p>
@@ -621,6 +713,13 @@ export default function SourcePage() {
                     </div>
 
                     <div className="mt-auto">
+                      <div className="mb-3">
+                        <span
+                          className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(3)}`}
+                        >
+                          Requirement 4: Backup
+                        </span>
+                      </div>
                       <button
                         type="button"
                         disabled={!hasSelection}

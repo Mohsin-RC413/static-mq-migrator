@@ -135,6 +135,7 @@ const QUEUES: QueueManager[] = [
 
 export default function DestinationPage() {
   const [connectionStatus, setConnectionStatus] = useState<'untested' | 'connected'>('untested');
+  const [connectionMessage, setConnectionMessage] = useState('');
   const [backupNotice, setBackupNotice] = useState<{ message: string; tone: 'success' | 'error' | '' }>({
     message: '',
     tone: '',
@@ -294,6 +295,7 @@ export default function DestinationPage() {
 
   const resetProgress = () => {
     setConnectionStatus('untested');
+    setConnectionMessage('');
     setTestDone(false);
     setMigrationDone(false);
     setDestinationSelectedQueues([]);
@@ -323,27 +325,128 @@ export default function DestinationPage() {
     });
   };
 
-  const handleTestConnection = () => {
-    setConnectionStatus('connected');
+  const handleTestConnection = async () => {
     setBackupNotice({ message: '', tone: '' });
-    setTestDone(true);
+
+    const isCloud = targetEnv === 'Cloud';
+    const payload = isCloud
+      ? {
+          clientId: form.clientId.trim(),
+          clientSecret: form.clientSecret,
+          tenantId: form.tenantId.trim(),
+          subscriptionId: form.subscriptionId.trim(),
+        }
+      : {
+          destination: {
+            server: form.server.trim(),
+            user: form.username.trim(),
+            password: form.password,
+            backupPath: form.backupDir.trim(),
+          },
+        };
+
     if (typeof window !== 'undefined') {
-      localStorage.setItem('destinationTestDone', 'true');
-      localStorage.setItem(destinationConnectedKey, 'true');
       localStorage.setItem(destinationFormKey, JSON.stringify(form));
       localStorage.setItem(
         destinationDropdownKey,
         JSON.stringify({ targetEnv, targetPlatform, computeModel, deploymentMode }),
       );
-      localStorage.setItem(destinationQueuesKey, JSON.stringify(destinationSelectedQueues));
     }
-    setLogs((prev) => [
-      `$ Validating credentials for ${form.server} ... OK`,
-      '$ Enumerating Queue Managers ... 4 found',
-      `$ Selected: ${destinationSelectedQueues.join(', ') || 'None selected'}`,
-      '$ Waiting for migration. Click "Migrate" to start...',
-      ...prev.slice(3),
-    ]);
+
+    try {
+      const accessToken =
+        typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      if (!accessToken) {
+        setConnectionStatus('untested');
+        setTestDone(false);
+        setConnectionMessage('Missing access token. Please log in again.');
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('destinationTestDone', 'false');
+          localStorage.setItem(destinationConnectedKey, 'false');
+        }
+        return;
+      }
+      const response = await fetch(
+        isCloud
+          ? 'http://192.168.18.35:8080/azure/login'
+          : 'http://192.168.18.35:8080/v1/store-server-cred?calledFrom=destination',
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+      const responseText = await response.text();
+      let data: unknown = null;
+
+      try {
+        data = responseText ? JSON.parse(responseText) : null;
+      } catch (parseError) {
+        console.warn('Destination connection response was not JSON:', parseError);
+        data = null;
+      }
+
+      console.log('Destination connection response:', data);
+
+      let isSuccess = response.ok;
+      let message = response.ok ? 'Connection successful' : 'Connection not successful';
+
+      if (data && typeof data === 'object') {
+        const record = data as {
+          responseCode?: string;
+          responseMsg?: string;
+          message?: string;
+        };
+        const responseCode = record.responseCode ? String(record.responseCode) : '';
+        const responseMsg = record.responseMsg ? String(record.responseMsg) : '';
+        if (responseCode || responseMsg) {
+          isSuccess = responseCode === '00' || responseMsg.toLowerCase() === 'success';
+        }
+        const responseMessage = record.message ?? record.responseMsg;
+        if (responseMessage) {
+          message = String(responseMessage);
+        }
+      }
+
+      setConnectionMessage(message);
+      if (isSuccess) {
+        setConnectionStatus('connected');
+        setTestDone(true);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('destinationTestDone', 'true');
+          localStorage.setItem(destinationConnectedKey, 'true');
+          localStorage.setItem(destinationQueuesKey, JSON.stringify(destinationSelectedQueues));
+        }
+        const logTarget = isCloud ? `${targetEnv} ${targetPlatform}` : form.server;
+        setLogs((prev) => [
+          `$ Validating credentials for ${logTarget || 'destination'} ... OK`,
+          '$ Enumerating Queue Managers ... 4 found',
+          `$ Selected: ${destinationSelectedQueues.join(', ') || 'None selected'}`,
+          '$ Waiting for migration. Click "Migrate" to start...',
+          ...prev.slice(3),
+        ]);
+      } else {
+        setConnectionStatus('untested');
+        setTestDone(false);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('destinationTestDone', 'false');
+          localStorage.setItem(destinationConnectedKey, 'false');
+        }
+      }
+    } catch (error) {
+      setConnectionStatus('untested');
+      setTestDone(false);
+      setConnectionMessage('Connection not successful');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('destinationTestDone', 'false');
+        localStorage.setItem(destinationConnectedKey, 'false');
+      }
+      console.error('Destination connection error:', error);
+    }
   };
 
   const handleMigrate = () => {
@@ -668,6 +771,9 @@ export default function DestinationPage() {
               >
                 Test Connection
               </button>
+              {connectionMessage ? (
+                <span className="text-xs font-semibold text-gray-600">{connectionMessage}</span>
+              ) : null}
               <span className={`ml-auto text-xs font-semibold px-3 py-1 rounded-full ${statusChip}`}>
                 {statusLabel}
               </span>

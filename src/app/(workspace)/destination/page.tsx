@@ -6,141 +6,19 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import logo from '../../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 
-type Status = 'ready' | 'warning';
-
 type QueueManager = {
   name: string;
-  status: Status;
-  lastBackup: string;
-  report: string;
-  version: string;
-  platform: string;
-  channels: string;
-  queues: string;
-  security: string;
+  state?: string;
 };
-
-const QUEUES: QueueManager[] = [
-  {
-    name: 'QMGR_PROD_A',
-    status: 'ready',
-    lastBackup: '-',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '42 defined - 3 stopped',
-    queues: '1,284 local - 17 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_PROD_B',
-    status: 'ready',
-    lastBackup: 'Today 09:12',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '38 defined - 2 stopped',
-    queues: '1,102 local - 14 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_PAYMENTS',
-    status: 'warning',
-    lastBackup: 'Yesterday',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '42 defined - 3 stopped',
-    queues: '1,284 local - 17 remote',
-    security: 'CHLAUTH enabled - TLS required - error',
-  },
-  {
-    name: 'QMGR_ANALYTICS',
-    status: 'ready',
-    lastBackup: '-',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '30 defined - 1 stopped',
-    queues: '856 local - 9 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_DR',
-    status: 'ready',
-    lastBackup: '-',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '28 defined - 1 stopped',
-    queues: '612 local - 8 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_ARCHIVE',
-    status: 'ready',
-    lastBackup: '-',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '22 defined - 0 stopped',
-    queues: '420 local - 5 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_TEST',
-    status: 'warning',
-    lastBackup: 'Last week',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '18 defined - 2 stopped',
-    queues: '380 local - 4 remote',
-    security: 'CHLAUTH enabled - TLS required - error',
-  },
-  {
-    name: 'QMGR_BATCH',
-    status: 'ready',
-    lastBackup: '-',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '25 defined - 1 stopped',
-    queues: '512 local - 6 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_EDGE',
-    status: 'ready',
-    lastBackup: 'Yesterday',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '30 defined - 1 stopped',
-    queues: '744 local - 9 remote',
-    security: 'CHLAUTH enabled - TLS required',
-  },
-  {
-    name: 'QMGR_EVENTS',
-    status: 'warning',
-    lastBackup: 'Today 07:10',
-    report: 'View',
-    version: 'IBM MQ 9.3.2',
-    platform: 'RHEL 8 (VMware)',
-    channels: '20 defined - 0 stopped',
-    queues: '590 local - 7 remote',
-    security: 'CHLAUTH enabled - TLS required - error',
-  },
-];
 
 export default function DestinationPage() {
   const [connectionStatus, setConnectionStatus] = useState<'untested' | 'connected'>('untested');
   const [connectionMessage, setConnectionMessage] = useState('');
+  const [destinationQueues, setDestinationQueues] = useState<QueueManager[]>([]);
   const [backupNotice, setBackupNotice] = useState<{ message: string; tone: 'success' | 'error' | '' }>({
     message: '',
     tone: '',
   });
-  const [sourceSelectedQueues, setSourceSelectedQueues] = useState<string[]>([]);
   const [destinationSelectedQueues, setDestinationSelectedQueues] = useState<string[]>([]);
   const [logs, setLogs] = useState<string[]>([
     'Validating credentials for destination ... not tested',
@@ -212,23 +90,11 @@ export default function DestinationPage() {
     const stored = localStorage.getItem(destinationDropdownKey);
     const testFlag = localStorage.getItem('destinationTestDone');
     const migrateFlag = localStorage.getItem('destinationMigrationDone');
-    const storedSelected = localStorage.getItem('selectedQueues');
     const storedConnected = localStorage.getItem(destinationConnectedKey);
     setTestDone(testFlag === 'true');
     setMigrationDone(migrateFlag === 'true');
     if (storedConnected === 'true') {
       setConnectionStatus('connected');
-    }
-    if (storedSelected) {
-      try {
-        const parsedSel = JSON.parse(storedSelected);
-        if (Array.isArray(parsedSel)) {
-          setSourceSelectedQueues(parsedSel);
-          setDestinationSelectedQueues([]);
-        }
-      } catch {
-        // ignore parse errors
-      }
     }
     if (storedConnected === 'true') {
       const storedForm = localStorage.getItem(destinationFormKey);
@@ -268,10 +134,7 @@ export default function DestinationPage() {
     }
   }, []);
 
-  const visibleQueues = useMemo(
-    () => QUEUES.filter((q) => sourceSelectedQueues.includes(q.name)),
-    [sourceSelectedQueues],
-  );
+  const visibleQueues = useMemo(() => destinationQueues, [destinationQueues]);
 
   const statusChip =
     connectionStatus === 'connected'
@@ -299,6 +162,7 @@ export default function DestinationPage() {
     setTestDone(false);
     setMigrationDone(false);
     setDestinationSelectedQueues([]);
+    setDestinationQueues([]);
     setBackupNotice({ message: '', tone: '' });
     setShowMigrationModal(false);
     if (typeof window !== 'undefined') {
@@ -326,7 +190,22 @@ export default function DestinationPage() {
   };
 
   const handleTestConnection = async () => {
+    if (connectionStatus === 'connected') {
+      setConnectionStatus('untested');
+      setConnectionMessage('');
+      setTestDone(false);
+      setDestinationSelectedQueues([]);
+      setDestinationQueues([]);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('destinationTestDone', 'false');
+        localStorage.setItem(destinationConnectedKey, 'false');
+        localStorage.removeItem(destinationQueuesKey);
+      }
+      return;
+    }
+
     setBackupNotice({ message: '', tone: '' });
+    setConnectionMessage('');
 
     const isCloud = targetEnv === 'Cloud';
     const payload = isCloud
@@ -400,15 +279,28 @@ export default function DestinationPage() {
           responseCode?: string;
           responseMsg?: string;
           message?: string;
+          success?: boolean;
         };
         const responseCode = record.responseCode ? String(record.responseCode) : '';
         const responseMsg = record.responseMsg ? String(record.responseMsg) : '';
-        if (responseCode || responseMsg) {
-          isSuccess = responseCode === '00' || responseMsg.toLowerCase() === 'success';
+        const responseMessage = record.message ? String(record.message) : '';
+        if (record.success === true) {
+          isSuccess = true;
         }
-        const responseMessage = record.message ?? record.responseMsg;
+        if (responseCode === '00' || responseMsg.toLowerCase() === 'success') {
+          isSuccess = true;
+        }
+        if (
+          responseMessage.toLowerCase() === 'azure login successful' ||
+          responseMessage.toLowerCase() === 'server credentials updated successfully!'
+        ) {
+          isSuccess = true;
+        }
+        const messageCandidate = responseMessage || record.responseMsg;
         if (responseMessage) {
           message = String(responseMessage);
+        } else if (messageCandidate) {
+          message = String(messageCandidate);
         }
       }
 
@@ -500,6 +392,78 @@ export default function DestinationPage() {
     setComputeModel(compute);
     setDeploymentMode('');
   };
+
+  useEffect(() => {
+    if (connectionStatus !== 'connected') {
+      setDestinationQueues([]);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const fetchDestinationQueues = async () => {
+      try {
+        const accessToken =
+          typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+        if (!accessToken) {
+          setDestinationQueues([]);
+          return;
+        }
+        const response = await fetch(
+          'http://192.168.18.35:8080/v1/destination/mq/list',
+          {
+            method: 'GET',
+            headers: {
+              Accept: 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+            signal: controller.signal,
+          },
+        );
+        const responseText = await response.text();
+        let data: unknown = null;
+
+        try {
+          data = responseText ? JSON.parse(responseText) : null;
+        } catch (parseError) {
+          console.warn('Destination MQ list was not JSON:', parseError);
+          data = null;
+        }
+
+        if (Array.isArray(data)) {
+          const mapped = data
+            .map((item) => {
+              if (!item || typeof item !== 'object') {
+                return null;
+              }
+              const record = item as { name?: string; state?: string };
+              if (!record.name) {
+                return null;
+              }
+              return {
+                name: String(record.name),
+                state: record.state ? String(record.state) : undefined,
+              };
+            })
+            .filter(Boolean) as QueueManager[];
+          setDestinationQueues(mapped);
+          setDestinationSelectedQueues((prev) =>
+            prev.filter((name) => mapped.some((queue) => queue.name === name)),
+          );
+        } else {
+          setDestinationQueues([]);
+        }
+      } catch (error) {
+        if ((error as { name?: string }).name !== 'AbortError') {
+          console.error('Destination MQ list error:', error);
+        }
+      }
+    };
+
+    fetchDestinationQueues();
+
+    return () => controller.abort();
+  }, [connectionStatus]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -767,9 +731,13 @@ export default function DestinationPage() {
               <button
                 type="button"
                 onClick={handleTestConnection}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 text-sm font-semibold shadow-sm"
+                className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold shadow-sm ${
+                  connectionStatus === 'connected'
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                }`}
               >
-                Test Connection
+                {connectionStatus === 'connected' ? 'Disconnect' : 'Test Connection'}
               </button>
               {connectionMessage ? (
                 <span className="text-xs font-semibold text-gray-600">{connectionMessage}</span>
@@ -798,17 +766,22 @@ export default function DestinationPage() {
               )}
             </div>
 
-            {visibleQueues.length === 0 ? (
+            {connectionStatus !== 'connected' ? (
               <div className="flex-1 flex items-center justify-center text-gray-600 font-semibold bg-white border border-dashed border-gray-300 rounded-xl gap-2 min-h-[240px]">
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
-                No queue managers selected on Source.
+                Test destination connection to load queue managers.
+              </div>
+            ) : visibleQueues.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-gray-600 font-semibold bg-white border border-dashed border-gray-300 rounded-xl gap-2 min-h-[240px]">
+                <ArrowLeft className="w-5 h-5 text-gray-500" />
+                No queue managers available.
               </div>
             ) : (
               <>
                 <div className="space-y-2">
                   <div className="grid grid-cols-[1.6fr_1fr_0.7fr] text-xs font-semibold text-gray-500 px-3 py-2">
                     <span>Queue Manager</span>
-                    <span>Last Backup</span>
+                    <span>State</span>
                     <span className="text-right">Report</span>
                   </div>
                   <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
@@ -826,12 +799,12 @@ export default function DestinationPage() {
                           />
                           <span>{queue.name}</span>
                         </div>
-                        <div className="text-gray-600 text-sm">{queue.lastBackup}</div>
+                        <div className="text-gray-600 text-sm">{queue.state || 'Unknown'}</div>
                         <button
                           type="button"
                           className="text-gray-600 text-sm font-semibold text-right hover:text-gray-700"
                         >
-                          {queue.report}
+                          View
                         </button>
                       </div>
                     ))}

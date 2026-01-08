@@ -29,7 +29,6 @@ export default function DestinationPage() {
   ]);
   const [testDone, setTestDone] = useState(false);
   const [migrationDone, setMigrationDone] = useState(false);
-  const [showMigrationModal, setShowMigrationModal] = useState(false);
   const router = useRouter();
   const destinationFormKey = 'destinationForm';
   const destinationDropdownKey = 'destinationDropdowns';
@@ -164,7 +163,6 @@ export default function DestinationPage() {
     setDestinationSelectedQueues([]);
     setDestinationQueues([]);
     setBackupNotice({ message: '', tone: '' });
-    setShowMigrationModal(false);
     if (typeof window !== 'undefined') {
       localStorage.setItem('destinationTestDone', 'false');
       localStorage.setItem('destinationMigrationDone', 'false');
@@ -341,7 +339,7 @@ export default function DestinationPage() {
     }
   };
 
-  const handleMigrate = () => {
+  const handleMigrate = async () => {
     if (connectionStatus !== 'connected') {
       return;
     }
@@ -353,26 +351,232 @@ export default function DestinationPage() {
       return;
     }
     setBackupNotice({ message: '', tone: '' });
-    setShowMigrationModal(true);
-  };
 
-  const confirmMigration = () => {
-    const targetDir = form.backupDir || 'specified directory';
-    setShowMigrationModal(false);
-    setBackupNotice({
-      message: `Migration stored at ${targetDir}`,
-      tone: 'success',
-    });
-    setMigrationDone(true);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('destinationMigrationDone', 'true');
+    const accessToken =
+      typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    const headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    };
+
+    const parseResponse = async (response: Response) => {
+      const responseText = await response.text();
+      if (!responseText) {
+        return null;
+      }
+      try {
+        return JSON.parse(responseText);
+      } catch (error) {
+        console.warn('Migration response was not JSON:', error);
+        return null;
+      }
+    };
+
+    const selectedQueue = destinationSelectedQueues[0];
+    const isCloud = targetEnv === 'Cloud';
+
+    try {
+      if (!isCloud) {
+        const migratePayload = { mqNames: destinationSelectedQueues };
+        console.log('Migrate request:', migratePayload);
+        const migrateResponse = await fetch('http://192.168.18.35:8080/v1/migrate', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(migratePayload),
+        });
+        const migrateData = await parseResponse(migrateResponse);
+        console.log('Migrate response:', migrateData);
+
+        const record = migrateData && typeof migrateData === 'object' ? (migrateData as {
+          responseCode?: string;
+          responseMsg?: string;
+          message?: string;
+        }) : null;
+        const responseCode = record?.responseCode ? String(record.responseCode) : '';
+        const responseMsg = record?.responseMsg ? String(record.responseMsg) : '';
+        const isSuccess = responseCode === '00' || responseMsg.toLowerCase() === 'success';
+        const message = record?.message
+          ? String(record.message)
+          : isSuccess
+            ? 'Migration completed successfully.'
+            : 'Migration failed.';
+
+        if (isSuccess) {
+          setBackupNotice({ message, tone: 'success' });
+          setMigrationDone(true);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('destinationMigrationDone', 'true');
+          }
+          setLogs((prev) => [
+            `$ Migration started for: ${destinationSelectedQueues.join(', ')}`,
+            `$ ${message}`,
+            '$ Waiting for next step...',
+            ...prev.slice(3),
+          ]);
+        } else {
+          setBackupNotice({ message, tone: 'error' });
+          setMigrationDone(false);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('destinationMigrationDone', 'false');
+          }
+        }
+        return;
+      }
+
+      const azureLoginPayload = {
+        clientId: form.clientId.trim(),
+        clientSecret: form.clientSecret,
+        tenantId: form.tenantId.trim(),
+        subscriptionId: form.subscriptionId.trim(),
+      };
+      console.log('Azure login request:', azureLoginPayload);
+      const azureLoginResponse = await fetch('http://192.168.18.35:8080/azure/login', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(azureLoginPayload),
+      });
+      const azureLoginData = await parseResponse(azureLoginResponse);
+      console.log('Azure login response:', azureLoginData);
+
+      const normalizedDeploymentMode = deploymentMode.trim();
+      const nodeCount =
+        normalizedDeploymentMode === 'Standalone'
+          ? 1
+          : normalizedDeploymentMode === 'Multiinstance'
+            ? 2
+            : normalizedDeploymentMode === 'RDQM'
+              ? 3
+              : 3;
+      const queueManagerName =
+        normalizedDeploymentMode === 'Standalone'
+          ? 'standalone'
+          : normalizedDeploymentMode === 'Multiinstance'
+            ? 'multiinstance'
+            : normalizedDeploymentMode === 'RDQM'
+              ? 'RDQM'
+              : 'multiinstance';
+
+      const aksCreatePayload = {
+        resourceGroup: form.resourceGroup.trim(),
+        clusterName: form.clusterName.trim(),
+        region: 'eastus',
+        nodeCount,
+      };
+      console.log('AKS create request:', aksCreatePayload);
+      const aksCreateResponse = await fetch('http://192.168.18.35:8080/aks/create', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(aksCreatePayload),
+      });
+      const aksCreateData = await parseResponse(aksCreateResponse);
+      console.log('AKS create response:', aksCreateData);
+
+      const aksCredentialsPayload = {
+        resourceGroup: form.resourceGroup.trim(),
+        clusterName: form.clusterName.trim(),
+      };
+      console.log('AKS get-credentials request:', aksCredentialsPayload);
+      const aksCredentialsResponse = await fetch(
+        'http://192.168.18.35:8080/aks/get-credentials',
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(aksCredentialsPayload),
+        },
+      );
+      const aksCredentialsData = await parseResponse(aksCredentialsResponse);
+      console.log('AKS get-credentials response:', aksCredentialsData);
+
+      const kubeconfigPath =
+        aksCredentialsData && typeof aksCredentialsData === 'object'
+          ? String((aksCredentialsData as { kubeconfigPath?: string }).kubeconfigPath ?? '')
+          : '';
+
+      if (!kubeconfigPath) {
+        setBackupNotice({ message: 'kubeconfigPath missing in credentials response.', tone: 'error' });
+        return;
+      }
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('kubeconfigPath', kubeconfigPath);
+      }
+
+      const mqInstallPayload = {
+        targetNamespace: form.namespace.trim(),
+        kubeconfigPath,
+      };
+      console.log('MQ install request:', mqInstallPayload);
+      const mqInstallResponse = await fetch('http://192.168.18.35:8080/mq/install', {
+        method: 'POST',
+        headers: {
+          ...headers,
+          kubeconfigPath,
+        },
+        body: JSON.stringify(mqInstallPayload),
+      });
+      const mqInstallData = await parseResponse(mqInstallResponse);
+      console.log('MQ install response:', mqInstallData);
+
+      const mqscPayload = {
+        kubeconfigPath,
+        namespace: form.namespace.trim(),
+        queueManagerName,
+        mqscFilePath: `/MQMigratorBackup/backupfromsource/${selectedQueue}.mqsc`,
+      };
+      console.log('MQ load-mqsc request:', mqscPayload);
+      const mqscResponse = await fetch('http://192.168.18.35:8080/mq/load-mqsc', {
+        method: 'POST',
+        headers: {
+          ...headers,
+          kubeconfigPath,
+        },
+        body: JSON.stringify(mqscPayload),
+      });
+      const mqscData = await parseResponse(mqscResponse);
+      console.log('MQ load-mqsc response:', mqscData);
+
+      const mqscRecord = mqscData && typeof mqscData === 'object' ? (mqscData as {
+        responseCode?: string;
+        responseMsg?: string;
+        message?: string;
+      }) : null;
+      const mqscCode = mqscRecord?.responseCode ? String(mqscRecord.responseCode) : '';
+      const mqscMsg = mqscRecord?.responseMsg ? String(mqscRecord.responseMsg) : '';
+      const mqscSuccess = mqscCode === '00' || mqscMsg.toLowerCase() === 'success';
+      const mqscMessage = mqscRecord?.message
+        ? String(mqscRecord.message)
+        : mqscSuccess
+          ? 'Migration completed successfully.'
+          : 'Migration failed.';
+
+      if (mqscSuccess) {
+        setBackupNotice({ message: mqscMessage, tone: 'success' });
+        setMigrationDone(true);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('destinationMigrationDone', 'true');
+        }
+        setLogs((prev) => [
+          `$ Migration started for: ${destinationSelectedQueues.join(', ')}`,
+          `$ ${mqscMessage}`,
+          '$ Waiting for next step...',
+          ...prev.slice(3),
+        ]);
+      } else {
+        setBackupNotice({ message: mqscMessage, tone: 'error' });
+        setMigrationDone(false);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('destinationMigrationDone', 'false');
+        }
+      }
+    } catch (error) {
+      console.error('Migration error:', error);
+      setBackupNotice({ message: 'Migration failed.', tone: 'error' });
+      setMigrationDone(false);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('destinationMigrationDone', 'false');
+      }
     }
-    setLogs((prev) => [
-      `$ Migration started for: ${destinationSelectedQueues.join(', ')}`,
-      `$ Writing migration artifacts to: ${targetDir}`,
-      '$ Migration complete (simulated preview).',
-      ...prev.slice(3),
-    ]);
   };
 
   const resetPlatformAndBelow = (env: string) => {
@@ -391,6 +595,16 @@ export default function DestinationPage() {
   const resetDeployment = (compute: string) => {
     setComputeModel(compute);
     setDeploymentMode('');
+  };
+
+  const handleDeploymentModeChange = (value: string) => {
+    setDeploymentMode(value);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(
+        destinationDropdownKey,
+        JSON.stringify({ targetEnv, targetPlatform, computeModel, deploymentMode: value }),
+      );
+    }
   };
 
   useEffect(() => {
@@ -595,7 +809,7 @@ export default function DestinationPage() {
                   <label className="text-sm font-semibold text-gray-700">Deployment Mode</label>
                   <select
                     value={deploymentMode}
-                    onChange={(e) => setDeploymentMode(e.target.value)}
+                    onChange={(e) => handleDeploymentModeChange(e.target.value)}
                     disabled={!deploymentOptions.length}
                     className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300 disabled:opacity-60"
                   >
@@ -840,44 +1054,6 @@ export default function DestinationPage() {
           </div>
         </div>
       </div>
-
-      {showMigrationModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4">
-            <h3 className="text-lg font-semibold text-gray-800">Confirm Migration</h3>
-            <p className="text-sm text-gray-700">
-              You are about to migrate the selected queue managers to the destination environment.
-            </p>
-            <p className="text-sm text-gray-700">
-              Migration output: <span className="font-semibold">{form.backupDir || 'specified directory'}</span>
-            </p>
-            <div className="text-sm text-gray-700">
-              <p className="font-semibold mb-1">Queue Managers:</p>
-              <ul className="list-disc list-inside space-y-1">
-                {destinationSelectedQueues.map((q) => (
-                  <li key={q}>{q}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowMigrationModal(false)}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmMigration}
-                className="px-4 py-2 rounded-lg bg-black hover:bg-gray-900 text-white text-sm font-semibold"
-              >
-                Yes, Migrate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="bg-neutral-900 text-gray-100 rounded-2xl border border-neutral-800 shadow-inner p-6 text-sm">
         <p className="font-semibold text-white mb-3">Event Logs</p>

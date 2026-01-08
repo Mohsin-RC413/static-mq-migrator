@@ -377,14 +377,18 @@ export default function SourcePage() {
       return;
     }
 
+    const isShared = form.transferMode === 'shared-sftp' || form.transferMode === 'shared-scp';
     const payload: {
-      source: { server: string; user: string; password: string };
-      destination?: { server: string; user: string; password: string };
+      transferType: 'LOCAL' | 'shared';
+      source: { server: string; user: string; password: string; backupPath: string };
+      destination?: { server: string; user: string; password: string; backupPath: string };
     } = {
+      transferType: isShared ? 'shared' : 'LOCAL',
       source: {
         server: form.server.trim(),
         user: form.username.trim(),
         password: form.password,
+        backupPath: form.backupDir.trim(),
       },
     };
 
@@ -393,12 +397,14 @@ export default function SourcePage() {
         server: sftpDetails.server.trim(),
         user: sftpDetails.username.trim(),
         password: sftpDetails.password,
+        backupPath: sftpDetails.backupDir.trim(),
       };
     } else if (form.transferMode === 'shared-scp') {
       payload.destination = {
         server: scpDetails.server.trim(),
         user: scpDetails.username.trim(),
         password: scpDetails.password,
+        backupPath: scpDetails.backupDir.trim(),
       };
     }
 
@@ -407,15 +413,18 @@ export default function SourcePage() {
     try {
       const accessToken =
         typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-      const response = await fetch('http://192.168.18.35:8080/v1/store-server-cred', {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      const response = await fetch(
+        'http://192.168.18.35:8080/v1/store-server-cred?calledFrom=source',
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify(payload),
         },
-        body: JSON.stringify(payload),
-      });
+      );
       const responseText = await response.text();
       let data: unknown = null;
 

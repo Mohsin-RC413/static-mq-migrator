@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { ArrowLeft, CloudUpload, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, CloudUpload, Loader2, RefreshCcw } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -196,10 +196,11 @@ export default function DestinationPage() {
         ? 'text-red-600 font-semibold whitespace-nowrap text-right'
         : '';
   const hasSelection = destinationSelectedQueues.length > 0;
-  const canMigrate = connectionStatus === 'connected' && hasSelection;
+  const isReadyToMigrate = connectionStatus === 'connected' && hasSelection;
+  const canMigrate = isReadyToMigrate && !isMigrateStreaming && !migrationDone;
   const step1Done = Boolean(destinationFieldsFilled);
   const step2Done = step1Done && (connectionStatus === 'connected' || testDone);
-  const step3Done = step2Done && destinationSelectedQueues.length > 0;
+  const step3Done = destinationSelectedQueues.length > 0;
   const step4Done = step3Done && migrationDone;
   const requirementSteps = [
     { label: 'Provide Destination connection credentials', done: step1Done },
@@ -410,7 +411,7 @@ export default function DestinationPage() {
   };
 
   const handleMigrate = async () => {
-    if (connectionStatus !== 'connected') {
+    if (connectionStatus !== 'connected' || isMigrateStreaming || migrationDone) {
       return;
     }
     if (destinationSelectedQueues.length === 0) {
@@ -421,6 +422,10 @@ export default function DestinationPage() {
       return;
     }
     setBackupNotice({ message: '', tone: '' });
+    setMigrationDone(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('destinationMigrationDone', 'false');
+    }
     setIsMigrateStreaming(true);
 
     const accessToken =
@@ -466,7 +471,13 @@ export default function DestinationPage() {
         }) : null;
         const responseCode = record?.responseCode ? String(record.responseCode) : '';
         const responseMsg = record?.responseMsg ? String(record.responseMsg) : '';
-        const isSuccess = responseCode === '00' || responseMsg.toLowerCase() === 'success';
+        const messageText = record?.message ? String(record.message) : '';
+        const normalizedMsg = responseMsg.trim().toLowerCase();
+        const normalizedMessage = messageText.trim().toLowerCase();
+        const isSuccess =
+          responseCode === '00' ||
+          normalizedMsg === 'success' ||
+          normalizedMessage.includes('migration completed successfully');
         const message = record?.message
           ? String(record.message)
           : isSuccess
@@ -614,7 +625,11 @@ export default function DestinationPage() {
       }) : null;
       const mqscCode = mqscRecord?.responseCode ? String(mqscRecord.responseCode) : '';
       const mqscMsg = mqscRecord?.responseMsg ? String(mqscRecord.responseMsg) : '';
-      const mqscSuccess = mqscCode === '00' || mqscMsg.toLowerCase() === 'success';
+      const mqscMessageText = mqscRecord?.message ? String(mqscRecord.message) : '';
+      const mqscSuccess =
+        mqscCode === '00' ||
+        mqscMsg.trim().toLowerCase() === 'success' ||
+        mqscMessageText.trim().toLowerCase().includes('migration completed successfully');
       const mqscMessage = mqscRecord?.message
         ? String(mqscRecord.message)
         : mqscSuccess
@@ -894,6 +909,7 @@ export default function DestinationPage() {
                     <input
                       value={form.server}
                       onChange={(e) => handleChange('server', e.target.value)}
+                      placeholder="mq-prod-01.company.com:1414"
                       className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
                     />
                   </div>
@@ -904,6 +920,7 @@ export default function DestinationPage() {
                       <input
                         value={form.username}
                         onChange={(e) => handleChange('username', e.target.value)}
+                        placeholder="root"
                         className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
                       />
                     </div>
@@ -913,6 +930,7 @@ export default function DestinationPage() {
                         type="password"
                         value={form.password}
                         onChange={(e) => handleChange('password', e.target.value)}
+                        placeholder="********"
                         className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
                       />
                     </div>
@@ -923,6 +941,7 @@ export default function DestinationPage() {
                     <input
                       value={form.backupDir}
                       onChange={(e) => handleChange('backupDir', e.target.value)}
+                      placeholder="/var/backups/mq-migrator/"
                       className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
                     />
                   </div>
@@ -1124,11 +1143,21 @@ export default function DestinationPage() {
                     disabled={!canMigrate}
                     onClick={handleMigrate}
                     className={`inline-flex items-center justify-center gap-2 rounded-lg w-full py-4 text-sm font-semibold shadow-sm ${
-                      canMigrate ? 'bg-black hover:bg-gray-900 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                      isMigrateStreaming
+                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : migrationDone
+                          ? 'bg-black text-white cursor-not-allowed'
+                          : isReadyToMigrate
+                            ? 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                            : 'bg-gray-300 text-gray-600 cursor-not-allowed'
                     }`}
                   >
-                    <CloudUpload className="w-4 h-4" />
-                    Migrate
+                    {isMigrateStreaming ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CloudUpload className="w-4 h-4" />
+                    )}
+                    {isMigrateStreaming ? 'Migrating...' : 'Migrate'}
                   </button>
                 </div>
               </>

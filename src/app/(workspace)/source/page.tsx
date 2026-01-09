@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { Link2, ArrowLeft, CloudUpload, Loader2, RefreshCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import logo from '../../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
@@ -11,6 +11,12 @@ type QueueManager = {
   state: string;
 };
 
+type GuideStep = {
+  title: string;
+  body: string;
+  examples?: string[];
+  targetRef: RefObject<HTMLElement>;
+};
 
 export default function SourcePage() {
   const [connectionStatus, setConnectionStatus] = useState<'untested' | 'connected'>('untested');
@@ -51,7 +57,166 @@ export default function SourcePage() {
   const [showBackupModal, setShowBackupModal] = useState(false);
   const toastDurationMs = 3000;
   const toastFadeMs = 300;
+  const guideStorageKey = 'sourceGuideSeen';
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [guideStep, setGuideStep] = useState(0);
+  const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
+  const [guidePlacement, setGuidePlacement] = useState<'right' | 'left' | 'top' | 'bottom'>(
+    'right',
+  );
+  const [guideCalloutStyle, setGuideCalloutStyle] = useState<CSSProperties>({});
+  const sourceFormRef = useRef<HTMLDivElement>(null);
+  const connectActionRef = useRef<HTMLDivElement>(null);
+  const queueManagersRef = useRef<HTMLDivElement>(null);
+  const backupActionRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  const guideSteps = useMemo<GuideStep[]>(
+    () => [
+      {
+        title: 'Requirement 1: Provide MQ Server details',
+        body: 'Fill in the source MQ server, credentials, and backup directory. Choose transfer mode if needed.',
+        examples: ['mq-prod-01.company.com:1414', '/var/backups/mq-migrator/'],
+        targetRef: sourceFormRef,
+      },
+      {
+        title: 'Requirement 2: Test connection',
+        body: 'Click Connect to validate credentials. Disconnect if you need to edit fields.',
+        targetRef: connectActionRef,
+      },
+      {
+        title: 'Requirement 3: Select queue managers for backup',
+        body: 'Pick at least one queue manager to include in the backup.',
+        targetRef: queueManagersRef,
+      },
+      {
+        title: 'Requirement 4: Backup',
+        body: 'Start the backup and track progress in the Event Logs.',
+        targetRef: backupActionRef,
+      },
+    ],
+    [],
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const seen = sessionStorage.getItem(guideStorageKey);
+    if (seen !== 'true') {
+      setIsGuideOpen(true);
+      setGuideStep(0);
+      sessionStorage.setItem(guideStorageKey, 'true');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isGuideOpen) return;
+    const target = guideSteps[guideStep]?.targetRef.current;
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [guideStep, guideSteps, isGuideOpen]);
+
+  useEffect(() => {
+    if (!isGuideOpen) {
+      setGuideRect(null);
+      return;
+    }
+
+    const updateGuide = () => {
+      const target = guideSteps[guideStep]?.targetRef.current;
+      if (!target) {
+        setGuideRect(null);
+        return;
+      }
+      const rect = target.getBoundingClientRect();
+      setGuideRect(rect);
+
+      const padding = 12;
+      const calloutWidth = Math.min(320, window.innerWidth - padding * 2);
+      const calloutHeight = 200;
+      const canPlaceRight = rect.right + padding + calloutWidth < window.innerWidth;
+      const canPlaceLeft = rect.left - padding - calloutWidth > 0;
+      const canPlaceBottom = rect.bottom + padding + calloutHeight < window.innerHeight;
+
+      let placement: 'right' | 'left' | 'top' | 'bottom' = 'right';
+      if (canPlaceRight) placement = 'right';
+      else if (canPlaceLeft) placement = 'left';
+      else if (canPlaceBottom) placement = 'bottom';
+      else placement = 'top';
+
+      const clamp = (value: number, min: number, max: number) =>
+        Math.min(Math.max(value, min), max);
+
+      let top = rect.top;
+      let left = rect.right + padding;
+
+      if (placement === 'right') {
+        top = clamp(rect.top, padding, window.innerHeight - calloutHeight - padding);
+        left = rect.right + padding;
+      } else if (placement === 'left') {
+        top = clamp(rect.top, padding, window.innerHeight - calloutHeight - padding);
+        left = rect.left - calloutWidth - padding;
+      } else if (placement === 'bottom') {
+        top = rect.bottom + padding;
+        left = clamp(rect.left, padding, window.innerWidth - calloutWidth - padding);
+      } else {
+        top = rect.top - calloutHeight - padding;
+        left = clamp(rect.left, padding, window.innerWidth - calloutWidth - padding);
+      }
+
+      setGuidePlacement(placement);
+      setGuideCalloutStyle({ top, left, width: calloutWidth });
+    };
+
+    updateGuide();
+    window.addEventListener('resize', updateGuide);
+    window.addEventListener('scroll', updateGuide, true);
+    return () => {
+      window.removeEventListener('resize', updateGuide);
+      window.removeEventListener('scroll', updateGuide, true);
+    };
+  }, [guideStep, guideSteps, isGuideOpen]);
+
+  const startGuide = () => {
+    setGuideStep(0);
+    setIsGuideOpen(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(guideStorageKey, 'true');
+    }
+  };
+
+  const handleGuideNext = () => {
+    if (guideStep >= guideSteps.length - 1) {
+      setIsGuideOpen(false);
+      return;
+    }
+    setGuideStep((prev) => prev + 1);
+  };
+
+  const handleGuideSkip = () => {
+    setIsGuideOpen(false);
+  };
+
+  const guideStepData = guideSteps[guideStep];
+  const highlightPadding = 8;
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
+  const highlightStyle = guideRect
+    ? {
+        top: Math.max(guideRect.top - highlightPadding, highlightPadding),
+        left: Math.max(guideRect.left - highlightPadding, highlightPadding),
+        width: guideRect.width + highlightPadding * 2,
+        height: guideRect.height + highlightPadding * 2,
+      }
+    : null;
+  const overlayTopHeight = guideRect ? Math.max(guideRect.top - highlightPadding, 0) : 0;
+  const overlayBottomTop = guideRect ? guideRect.bottom + highlightPadding : 0;
+  const overlayBottomHeight = guideRect
+    ? Math.max(viewportHeight - overlayBottomTop, 0)
+    : 0;
+  const overlaySideHeight = guideRect ? guideRect.height + highlightPadding * 2 : 0;
+  const overlayLeftWidth = guideRect ? Math.max(guideRect.left - highlightPadding, 0) : 0;
+  const overlayRightLeft = guideRect ? guideRect.right + highlightPadding : 0;
+  const overlayRightWidth = guideRect ? Math.max(viewportWidth - overlayRightLeft, 0) : 0;
 
   const resetProgress = () => {
     setConnectionStatus('untested');
@@ -570,13 +735,23 @@ export default function SourcePage() {
         <div className="mt-6 bg-white border border-gray-200 rounded-2xl shadow-sm px-6 py-5">
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm font-semibold text-gray-700">Progress</div>
-            <button
-              type="button"
-              onClick={resetProgress}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-            >
-              Reset
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={startGuide}
+                className="h-6 w-6 rounded-full border border-gray-300 text-xs font-semibold text-gray-600 hover:text-gray-800 hover:border-gray-400"
+                aria-label="Open guided journey"
+              >
+                ?
+              </button>
+              <button
+                type="button"
+                onClick={resetProgress}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+              >
+                Reset
+              </button>
+            </div>
         </div>
           <div className="relative">
             <div className="absolute left-6 right-6 top-4 h-px bg-gray-200" />
@@ -606,7 +781,10 @@ export default function SourcePage() {
 
         <div className="grid md:grid-cols-2 gap-6 mt-8">
           {/* Source Connection Card */}
-          <div className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm flex flex-col min-h-[520px]">
+          <div
+            ref={sourceFormRef}
+            className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm flex flex-col min-h-[520px]"
+          >
             <div className="mb-3">
               <span
                 className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(0)}`}
@@ -777,7 +955,10 @@ export default function SourcePage() {
               )}
             </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div
+              ref={connectActionRef}
+              className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+            >
               <span
                 className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(1)}`}
               >
@@ -799,7 +980,10 @@ export default function SourcePage() {
           </div>
 
           {/* Queue Managers Card */}
-          <div className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm flex flex-col min-h-[520px]">
+          <div
+            ref={queueManagersRef}
+            className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm flex flex-col min-h-[520px]"
+          >
             <div className="mb-3">
               <span
                 className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(2)}`}
@@ -859,7 +1043,7 @@ export default function SourcePage() {
                       </div>
                     </div>
 
-                    <div className="mt-auto">
+                    <div ref={backupActionRef} className="mt-auto">
                       <div className="mb-3">
                         <span
                           className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(3)}`}
@@ -957,6 +1141,90 @@ export default function SourcePage() {
           ))}
         </div>
       </div>
+
+      {isGuideOpen && guideRect && guideStepData ? (
+        <div className="fixed inset-0 z-[100] pointer-events-none">
+          <div className="absolute inset-0">
+            <div
+              className="absolute left-0 top-0 w-full bg-black/20 backdrop-blur-sm pointer-events-auto"
+              style={{ height: overlayTopHeight }}
+            />
+            <div
+              className="absolute left-0 w-full bg-black/20 backdrop-blur-sm pointer-events-auto"
+              style={{ top: overlayBottomTop, height: overlayBottomHeight }}
+            />
+            <div
+              className="absolute left-0 bg-black/20 backdrop-blur-sm pointer-events-auto"
+              style={{
+                top: Math.max(guideRect.top - highlightPadding, highlightPadding),
+                width: overlayLeftWidth,
+                height: overlaySideHeight,
+              }}
+            />
+            <div
+              className="absolute bg-black/20 backdrop-blur-sm pointer-events-auto"
+              style={{
+                top: Math.max(guideRect.top - highlightPadding, highlightPadding),
+                left: overlayRightLeft,
+                width: overlayRightWidth,
+                height: overlaySideHeight,
+              }}
+            />
+          </div>
+          {highlightStyle && (
+            <div
+              className="absolute rounded-2xl border-2 border-white/80 shadow-[0_0_0_4px_rgba(255,255,255,0.2)] pointer-events-none"
+              style={highlightStyle}
+            />
+          )}
+          <div className="absolute pointer-events-auto" style={guideCalloutStyle}>
+            <div className="relative rounded-xl border border-gray-200 bg-white p-4 shadow-xl text-gray-800">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-400">
+                Step {guideStep + 1} of {guideSteps.length}
+              </div>
+              <p className="mt-2 text-sm font-semibold text-gray-800">{guideStepData.title}</p>
+              <p className="mt-2 text-sm text-gray-600">{guideStepData.body}</p>
+              {guideStepData.examples?.length ? (
+                <div className="mt-3 text-xs text-gray-500">
+                  <p className="font-semibold text-gray-600">Examples</p>
+                  <ul className="mt-1 space-y-1 font-mono">
+                    {guideStepData.examples.map((example) => (
+                      <li key={example}>{example}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              <div className="mt-4 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={handleGuideSkip}
+                  className="text-xs font-semibold text-gray-500 hover:text-gray-700"
+                >
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGuideNext}
+                  className="rounded-lg bg-black px-3 py-2 text-xs font-semibold text-white hover:bg-gray-900"
+                >
+                  {guideStep === guideSteps.length - 1 ? 'Done' : 'Next'}
+                </button>
+              </div>
+              <div
+                className={`absolute h-3 w-3 rotate-45 border border-gray-200 bg-white ${
+                  guidePlacement === 'right'
+                    ? 'left-[-6px] top-6'
+                    : guidePlacement === 'left'
+                      ? 'right-[-6px] top-6'
+                      : guidePlacement === 'bottom'
+                        ? 'top-[-6px] left-6'
+                        : 'bottom-[-6px] left-6'
+                }`}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {toastMessage ? (
         <div

@@ -20,10 +20,6 @@ export default function SourcePage() {
   const [toastProgress, setToastProgress] = useState(100);
   const [isBackupStreaming, setIsBackupStreaming] = useState(false);
   const [queueManagers, setQueueManagers] = useState<QueueManager[]>([]);
-  const [backupNotice, setBackupNotice] = useState<{ message: string; tone: 'success' | 'error' | '' }>({
-    message: '',
-    tone: '',
-  });
   const [backupDone, setBackupDone] = useState(false);
   const [testDone, setTestDone] = useState(false);
   const [migrationDone, setMigrationDone] = useState(false);
@@ -281,12 +277,8 @@ export default function SourcePage() {
         localStorage.setItem('selectedQueues', JSON.stringify(next));
       }
       if (next.length === 0) {
-        setBackupNotice({
-          message: '* Select at least one queue manager for backup.',
-          tone: 'error',
-        });
-      } else if (backupNotice.tone === 'error') {
-        setBackupNotice({ message: '', tone: '' });
+        setToastMessage('Select at least one queue manager for backup.');
+        setToastTone('error');
       }
       return next;
     });
@@ -294,10 +286,8 @@ export default function SourcePage() {
 
   const handleBackup = async () => {
     if (selectedQueues.length === 0) {
-      setBackupNotice({
-        message: '* Select at least one queue manager for backup.',
-        tone: 'error',
-      });
+      setToastMessage('Select at least one queue manager for backup.');
+      setToastTone('error');
       return;
     }
 
@@ -350,7 +340,8 @@ export default function SourcePage() {
           : 'Backup failed.';
 
       if (isSuccess) {
-        setBackupNotice({ message, tone: 'success' });
+        setToastMessage(message);
+        setToastTone('success');
         setBackupDone(true);
         if (typeof window !== 'undefined') {
           localStorage.setItem('backupDone', 'true');
@@ -364,14 +355,16 @@ export default function SourcePage() {
         ]);
         setShowBackupModal(true);
       } else {
-        setBackupNotice({ message, tone: 'error' });
+        setToastMessage(message);
+        setToastTone('error');
         setBackupDone(false);
         if (typeof window !== 'undefined') {
           localStorage.setItem('backupDone', 'false');
         }
       }
     } catch (error) {
-      setBackupNotice({ message: 'Backup failed.', tone: 'error' });
+      setToastMessage('Backup failed.');
+      setToastTone('error');
       setBackupDone(false);
       if (typeof window !== 'undefined') {
         localStorage.setItem('backupDone', 'false');
@@ -382,13 +375,9 @@ export default function SourcePage() {
     }
   };
 
-  const noticeClasses =
-    backupNotice.tone === 'success'
-      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-      : backupNotice.tone === 'error'
-        ? 'text-red-600 font-semibold whitespace-nowrap text-right'
-        : '';
   const hasSelection = selectedQueues.length > 0;
+  const logLines = logs.length ? logs : ['Take MQ Backup to See the logs'];
+  const isLogPlaceholder = logs.length === 0;
   const step1Done = Boolean(fieldsFilled);
   const step2Done = step1Done && connectionStatus === 'connected';
   const step3Done = step2Done && selectedQueues.length > 0;
@@ -801,23 +790,6 @@ export default function SourcePage() {
                   Select Queue Managers to back up. Click a row to view details.
                 </p>
               </div>
-              {backupNotice.message && (
-                <div className="text-xs font-semibold text-right">
-                  <span
-                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${noticeClasses}`}
-                  >
-                    <span>{backupNotice.message}</span>
-                    <button
-                      type="button"
-                      onClick={() => setBackupNotice({ message: '', tone: '' })}
-                      className="text-gray-700 hover:text-gray-900"
-                      aria-label="Dismiss notice"
-                    >
-                      x
-                    </button>
-                  </span>
-                </div>
-              )}
             </div>
 
                 {connectionStatus !== 'connected' ? (
@@ -940,7 +912,7 @@ export default function SourcePage() {
           </button>
         </div>
         <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-          {logs.map((line, idx) => (
+          {logLines.map((line, idx) => (
             <div
               key={`${line}-${idx}`}
               className="flex items-start gap-3 bg-neutral-950/60 border border-neutral-800 rounded-lg px-3 py-2"
@@ -948,7 +920,11 @@ export default function SourcePage() {
               <span className="text-[11px] text-neutral-500 mt-1 font-semibold">
                 #{String(idx + 1).padStart(2, '0')}
               </span>
-              <p className="text-emerald-200 font-mono text-sm leading-6">$ {line}</p>
+              {isLogPlaceholder ? (
+                <p className="text-gray-400 font-mono text-sm leading-6">{line}</p>
+              ) : (
+                <p className="text-emerald-200 font-mono text-sm leading-6">$ {line}</p>
+              )}
             </div>
           ))}
         </div>

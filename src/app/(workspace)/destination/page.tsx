@@ -19,10 +19,6 @@ export default function DestinationPage() {
   const [toastProgress, setToastProgress] = useState(100);
   const [isMigrateStreaming, setIsMigrateStreaming] = useState(false);
   const [destinationQueues, setDestinationQueues] = useState<QueueManager[]>([]);
-  const [backupNotice, setBackupNotice] = useState<{ message: string; tone: 'success' | 'error' | '' }>({
-    message: '',
-    tone: '',
-  });
   const [destinationSelectedQueues, setDestinationSelectedQueues] = useState<string[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
   const [testDone, setTestDone] = useState(false);
@@ -189,12 +185,6 @@ export default function DestinationPage() {
 
   const statusLabel = connectionStatus === 'connected' ? 'Connected' : 'Connection Not Tested';
 
-  const noticeClasses =
-    backupNotice.tone === 'success'
-      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-      : backupNotice.tone === 'error'
-        ? 'text-red-600 font-semibold whitespace-nowrap text-right'
-        : '';
   const hasSelection = destinationSelectedQueues.length > 0;
   const isReadyToMigrate = connectionStatus === 'connected' && hasSelection;
   const canMigrate = isReadyToMigrate && !isMigrateStreaming && !migrationDone;
@@ -202,6 +192,8 @@ export default function DestinationPage() {
   const step2Done = step1Done && (connectionStatus === 'connected' || testDone);
   const step3Done = destinationSelectedQueues.length > 0;
   const step4Done = step3Done && migrationDone;
+  const logLines = logs.length ? logs : ['Migrate MQ to See the logs'];
+  const isLogPlaceholder = logs.length === 0;
   const requirementSteps = [
     { label: 'Provide Destination connection credentials', done: step1Done },
     { label: 'Test connection', done: step2Done },
@@ -230,7 +222,6 @@ export default function DestinationPage() {
     setMigrationDone(false);
     setDestinationSelectedQueues([]);
     setDestinationQueues([]);
-    setBackupNotice({ message: '', tone: '' });
     if (typeof window !== 'undefined') {
       localStorage.setItem('destinationTestDone', 'false');
       localStorage.setItem('destinationMigrationDone', 'false');
@@ -241,12 +232,8 @@ export default function DestinationPage() {
     setDestinationSelectedQueues((prev) => {
       const next = prev.includes(name) ? prev.filter((item) => item !== name) : [...prev, name];
       if (next.length === 0) {
-        setBackupNotice({
-          message: '* Select at least one queue manager for migration.',
-          tone: 'error',
-        });
-      } else if (backupNotice.tone === 'error') {
-        setBackupNotice({ message: '', tone: '' });
+        setToastMessage('Select at least one queue manager for migration.');
+        setToastTone('error');
       }
       if (typeof window !== 'undefined' && connectionStatus === 'connected') {
         localStorage.setItem(destinationQueuesKey, JSON.stringify(next));
@@ -269,7 +256,6 @@ export default function DestinationPage() {
       return;
     }
 
-    setBackupNotice({ message: '', tone: '' });
     setToastMessage('');
     setToastTone('');
 
@@ -415,13 +401,12 @@ export default function DestinationPage() {
       return;
     }
     if (destinationSelectedQueues.length === 0) {
-      setBackupNotice({
-        message: '* Select at least one queue manager for migration.',
-        tone: 'error',
-      });
+      setToastMessage('Select at least one queue manager for migration.');
+      setToastTone('error');
       return;
     }
-    setBackupNotice({ message: '', tone: '' });
+    setToastMessage('');
+    setToastTone('');
     setMigrationDone(false);
     if (typeof window !== 'undefined') {
       localStorage.setItem('destinationMigrationDone', 'false');
@@ -485,7 +470,8 @@ export default function DestinationPage() {
             : 'Migration failed.';
 
         if (isSuccess) {
-          setBackupNotice({ message, tone: 'success' });
+          setToastMessage(message);
+          setToastTone('success');
           setMigrationDone(true);
           if (typeof window !== 'undefined') {
             localStorage.setItem('destinationMigrationDone', 'true');
@@ -497,7 +483,8 @@ export default function DestinationPage() {
             ...prev.slice(3),
           ]);
         } else {
-          setBackupNotice({ message, tone: 'error' });
+          setToastMessage(message);
+          setToastTone('error');
           setMigrationDone(false);
           if (typeof window !== 'undefined') {
             localStorage.setItem('destinationMigrationDone', 'false');
@@ -576,7 +563,8 @@ export default function DestinationPage() {
           : '';
 
       if (!kubeconfigPath) {
-        setBackupNotice({ message: 'kubeconfigPath missing in credentials response.', tone: 'error' });
+        setToastMessage('kubeconfigPath missing in credentials response.');
+        setToastTone('error');
         return;
       }
 
@@ -637,7 +625,8 @@ export default function DestinationPage() {
           : 'Migration failed.';
 
       if (mqscSuccess) {
-        setBackupNotice({ message: mqscMessage, tone: 'success' });
+        setToastMessage(mqscMessage);
+        setToastTone('success');
         setMigrationDone(true);
         if (typeof window !== 'undefined') {
           localStorage.setItem('destinationMigrationDone', 'true');
@@ -649,7 +638,8 @@ export default function DestinationPage() {
           ...prev.slice(3),
         ]);
       } else {
-        setBackupNotice({ message: mqscMessage, tone: 'error' });
+        setToastMessage(mqscMessage);
+        setToastTone('error');
         setMigrationDone(false);
         if (typeof window !== 'undefined') {
           localStorage.setItem('destinationMigrationDone', 'false');
@@ -657,7 +647,8 @@ export default function DestinationPage() {
       }
     } catch (error) {
       console.error('Migration error:', error);
-      setBackupNotice({ message: 'Migration failed.', tone: 'error' });
+      setToastMessage('Migration failed.');
+      setToastTone('error');
       setMigrationDone(false);
       if (typeof window !== 'undefined') {
         localStorage.setItem('destinationMigrationDone', 'false');
@@ -1064,23 +1055,6 @@ export default function DestinationPage() {
                   Select Queue Managers for migration.
                 </p>
               </div>
-              {backupNotice.message && (
-                <div className="text-xs font-semibold text-right">
-                  <span
-                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${noticeClasses}`}
-                  >
-                    <span>{backupNotice.message}</span>
-                    <button
-                      type="button"
-                      onClick={() => setBackupNotice({ message: '', tone: '' })}
-                      className="text-gray-700 hover:text-gray-900"
-                      aria-label="Dismiss notice"
-                    >
-                      x
-                    </button>
-                  </span>
-                </div>
-              )}
             </div>
 
             {connectionStatus !== 'connected' ? (
@@ -1190,7 +1164,7 @@ export default function DestinationPage() {
           </button>
         </div>
         <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-          {logs.map((line, idx) => (
+          {logLines.map((line, idx) => (
             <div
               key={`${line}-${idx}`}
               className="flex items-start gap-3 bg-neutral-950/60 border border-neutral-800 rounded-lg px-3 py-2"
@@ -1198,7 +1172,11 @@ export default function DestinationPage() {
               <span className="text-[11px] text-neutral-500 mt-1 font-semibold">
                 #{String(idx + 1).padStart(2, '0')}
               </span>
-              <p className="text-emerald-200 font-mono text-sm leading-6">$ {line}</p>
+              {isLogPlaceholder ? (
+                <p className="text-gray-400 font-mono text-sm leading-6">{line}</p>
+              ) : (
+                <p className="text-emerald-200 font-mono text-sm leading-6">$ {line}</p>
+              )}
             </div>
           ))}
         </div>

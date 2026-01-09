@@ -21,10 +21,25 @@ export default function WorkspaceLayout({ children }: Props) {
   const router = useRouter();
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('sourceForm');
-      localStorage.removeItem('sourceSftp');
-      localStorage.removeItem('sourceScp');
+      const keysToClear = [
+        'accessToken',
+        'backupDone',
+        'testDone',
+        'migrationDone',
+        'sourceConnected',
+        'selectedQueues',
+        'sourceForm',
+        'sourceSftp',
+        'sourceScp',
+        'destinationForm',
+        'destinationDropdowns',
+        'destinationSelectedQueues',
+        'destinationTestDone',
+        'destinationMigrationDone',
+        'destinationConnected',
+        'kubeconfigPath',
+      ];
+      keysToClear.forEach((key) => localStorage.removeItem(key));
     }
     router.push('/');
   };

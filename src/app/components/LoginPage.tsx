@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Input } from './ui/input';
@@ -16,7 +16,37 @@ export function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastTone, setToastTone] = useState<'success' | 'error' | ''>('');
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastProgress, setToastProgress] = useState(100);
+  const toastDurationMs = 3000;
+  const toastFadeMs = 300;
   const router = useRouter();
+
+  useEffect(() => {
+    if (!toastMessage) {
+      setToastVisible(false);
+      setToastProgress(100);
+      return;
+    }
+    setToastVisible(true);
+    setToastProgress(100);
+    const animationFrame = requestAnimationFrame(() => {
+      setToastProgress(0);
+    });
+    const fadeDelay = Math.max(toastDurationMs - toastFadeMs, 0);
+    const fadeTimer = setTimeout(() => setToastVisible(false), fadeDelay);
+    const clearTimer = setTimeout(() => {
+      setToastMessage('');
+      setToastTone('');
+    }, toastDurationMs);
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      clearTimeout(fadeTimer);
+      clearTimeout(clearTimer);
+    };
+  }, [toastMessage, toastDurationMs, toastFadeMs]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -60,10 +90,19 @@ export function LoginPage() {
           'accessToken',
           (data as { accessToken: string }).accessToken
         );
+        localStorage.setItem(
+          'loginToast',
+          JSON.stringify({ message: 'Log in Success', tone: 'success' })
+        );
         router.push('/source');
+      } else {
+        setToastMessage('Invalid Credentials');
+        setToastTone('error');
       }
     } catch (error) {
       console.error('Login error:', error);
+      setToastMessage('Invalid Credentials');
+      setToastTone('error');
     } finally {
       setIsSubmitting(false);
     }
@@ -172,6 +211,30 @@ export function LoginPage() {
       <div className="hidden lg:block w-1/2">
         <MigrationAnimation />
       </div>
+
+      {toastMessage ? (
+        <div
+          className={`fixed bottom-6 right-6 z-50 w-72 rounded-xl border bg-white shadow-lg px-4 py-3 transition-opacity duration-300 ${
+            toastVisible ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          <p
+            className={`text-sm font-semibold ${
+              toastTone === 'error' ? 'text-red-600' : 'text-gray-800'
+            }`}
+          >
+            {toastMessage}
+          </p>
+          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-gray-200">
+            <div
+              className={`h-full transition-[width] ease-linear ${
+                toastTone === 'error' ? 'bg-red-500' : 'bg-gray-900'
+              }`}
+              style={{ width: `${toastProgress}%`, transitionDuration: `${toastDurationMs}ms` }}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

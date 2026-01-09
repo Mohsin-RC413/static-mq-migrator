@@ -38,6 +38,7 @@ export default function WorkspaceLayout({ children }: Props) {
         'destinationMigrationDone',
         'destinationConnected',
         'kubeconfigPath',
+        'loginToast',
       ];
       keysToClear.forEach((key) => localStorage.removeItem(key));
     }

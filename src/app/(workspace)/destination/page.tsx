@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { ArrowLeft, CloudUpload, Loader2, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, CloudUpload, Link2, Loader2, RefreshCcw } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -1023,25 +1023,24 @@ export default function DestinationPage() {
 
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <span
-                className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 mb-3 ${getRequirementBadgeClass(1)}`}
+                className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(1)}`}
               >
                 Requirement 2: Test Connection
               </span>
-              <div className="flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={handleTestConnection}
-                  className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold shadow-sm ${
-                    connectionStatus === 'connected'
-                      ? 'bg-red-500 hover:bg-red-600 text-white'
-                      : 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                  }`}
-                >
-                  {connectionStatus === 'connected' ? 'Disconnect' : 'Test Connection'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleTestConnection}
+                className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold shadow-sm ${
+                  connectionStatus === 'connected'
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                }`}
+              >
+                <Link2 className="w-4 h-4" />
+                {connectionStatus === 'connected' ? 'Disconnect' : 'Connect'}
+              </button>
             </div>
           </div>
 

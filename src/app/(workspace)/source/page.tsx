@@ -75,6 +75,7 @@ export default function SourcePage() {
     const storedMigration = localStorage.getItem('migrationDone');
     const storedConnected = localStorage.getItem('sourceConnected');
     const storedSelected = localStorage.getItem('selectedQueues');
+    const loginToast = localStorage.getItem('loginToast');
     setBackupDone(stored === 'true');
     setTestDone(storedTest === 'true');
     setMigrationDone(storedMigration === 'true');
@@ -90,6 +91,18 @@ export default function SourcePage() {
       } catch {
         // ignore parse errors
       }
+    }
+    if (loginToast) {
+      try {
+        const parsed = JSON.parse(loginToast) as { message?: string; tone?: 'success' | 'error' };
+        if (parsed?.message) {
+          setToastMessage(parsed.message);
+          setToastTone(parsed.tone === 'error' ? 'error' : 'success');
+        }
+      } catch {
+        // ignore malformed login toast
+      }
+      localStorage.removeItem('loginToast');
     }
   }, []);
 
@@ -764,26 +777,24 @@ export default function SourcePage() {
               )}
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <span
-                className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 mb-3 ${getRequirementBadgeClass(1)}`}
+                className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(1)}`}
               >
                 Requirement 2: Test connection
               </span>
-              <div className="flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={handleConnectToggle}
-                  className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold shadow-sm ${
-                    connectionStatus === 'connected'
-                      ? 'bg-red-500 hover:bg-red-600 text-white'
-                      : 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                  }`}
-                >
-                  <Link2 className="w-4 h-4" />
-                  {connectionStatus === 'connected' ? 'Disconnect' : 'Connect'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleConnectToggle}
+                className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold shadow-sm ${
+                  connectionStatus === 'connected'
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                }`}
+              >
+                <Link2 className="w-4 h-4" />
+                {connectionStatus === 'connected' ? 'Disconnect' : 'Connect'}
+              </button>
             </div>
           </div>
 

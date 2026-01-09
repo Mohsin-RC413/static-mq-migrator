@@ -15,6 +15,7 @@ type QueueManager = {
 export default function SourcePage() {
   const [connectionStatus, setConnectionStatus] = useState<'untested' | 'connected'>('untested');
   const [connectionMessage, setConnectionMessage] = useState('');
+  const [isBackupStreaming, setIsBackupStreaming] = useState(false);
   const [queueManagers, setQueueManagers] = useState<QueueManager[]>([]);
   const [backupNotice, setBackupNotice] = useState<{ message: string; tone: 'success' | 'error' | '' }>({
     message: '',
@@ -24,13 +25,7 @@ export default function SourcePage() {
   const [testDone, setTestDone] = useState(false);
   const [migrationDone, setMigrationDone] = useState(false);
   const [selectedQueues, setSelectedQueues] = useState<string[]>([]);
-  const [logs, setLogs] = useState<string[]>([
-    'Validating credentials for mq-prod-01.company.com:1414 ... not tested',
-    'Enumerating Queue Managers ... pending',
-    'Queued request for channel sync ... pending',
-    'Fetching TLS cert metadata ... pending',
-    'Preparing backup directory ... pending',
-  ]);
+  const [logs, setLogs] = useState<string[]>([]);
   const [form, setForm] = useState({
     server: '',
     username: '',
@@ -96,6 +91,29 @@ export default function SourcePage() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!isBackupStreaming) return;
+    const socket = new WebSocket('ws://192.168.18.35:8080/logs');
+
+    socket.onopen = () => {
+      console.log('WebSocket connection established');
+    };
+    socket.onmessage = (event) => {
+      console.log('Message received:', event.data);
+      setLogs((prevLogs) => [...prevLogs, event.data]);
+    };
+    socket.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, [isBackupStreaming]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -254,6 +272,7 @@ export default function SourcePage() {
       return;
     }
 
+    setIsBackupStreaming(true);
     const transferType =
       form.transferMode === 'shared-sftp'
         ? 'SFTP'
@@ -329,6 +348,8 @@ export default function SourcePage() {
         localStorage.setItem('backupDone', 'false');
       }
       console.error('Backup error:', error);
+    } finally {
+      setIsBackupStreaming(false);
     }
   };
 
@@ -339,14 +360,15 @@ export default function SourcePage() {
         ? 'text-red-600 font-semibold whitespace-nowrap text-right'
         : '';
   const hasSelection = selectedQueues.length > 0;
+  const step1Done = Boolean(fieldsFilled);
+  const step2Done = step1Done && connectionStatus === 'connected';
+  const step3Done = step2Done && selectedQueues.length > 0;
+  const step4Done = step3Done && backupDone;
   const requirementSteps = [
-    {
-      label: 'Provide MQ Server details',
-      done: Boolean(fieldsFilled) || backupDone || testDone || connectionStatus === 'connected',
-    },
-    { label: 'Test connection', done: connectionStatus === 'connected' || testDone || backupDone },
-    { label: 'Select Queue managers for backup', done: selectedQueues.length > 0 || backupDone },
-    { label: 'Backup', done: backupDone },
+    { label: 'Provide MQ Server details', done: step1Done },
+    { label: 'Test connection', done: step2Done },
+    { label: 'Select Queue managers for backup', done: step3Done },
+    { label: 'Backup', done: step4Done },
   ];
   const currentRequirementIndex = requirementSteps.findIndex((step) => !step.done);
   const getRequirementBadgeClass = (index: number) => {

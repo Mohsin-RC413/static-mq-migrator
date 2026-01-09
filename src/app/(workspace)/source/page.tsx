@@ -1695,23 +1695,28 @@ export default function SourcePage() {
 
                 <label className="text-sm font-semibold text-gray-700">Transfer Mode</label>
 
-                <select
+                <Select value={form.transferMode} onValueChange={(value) => handleChange('transferMode', value)}>
 
-                  value={form.transferMode}
+                  <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus-visible:border-gray-400 focus-visible:ring-2 focus-visible:ring-gray-300 *:data-[slot=select-value]:mx-auto *:data-[slot=select-value]:w-full *:data-[slot=select-value]:justify-center *:data-[slot=select-value]:text-center">
 
-                  onChange={(e) => handleChange('transferMode', e.target.value)}
+                    <SelectValue placeholder="Local" />
 
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
+                  </SelectTrigger>
 
-                >
+                  <SelectContent className="rounded-lg border border-gray-200 bg-white text-gray-800">
 
-                  <option value="local">Local</option>
+                    <SelectItem className="justify-center text-center" value="local">
+                      Local
+                    </SelectItem>
+                    <SelectItem className="justify-center text-center" value="shared-sftp">
+                      Shared SFTP
+                    </SelectItem>
+                    <SelectItem className="justify-center text-center" value="shared-scp">
+                      Shared SCP
+                    </SelectItem>
+                  </SelectContent>
 
-                  <option value="shared-sftp">Shared SFTP</option>
-
-                  <option value="shared-scp">Shared SCP</option>
-
-                </select>
+                </Select>
 
                 <p className="text-xs text-gray-500">
 

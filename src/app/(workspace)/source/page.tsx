@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { Link2, ArrowLeft, CloudUpload } from 'lucide-react';
+import { Link2, ArrowLeft, CloudUpload, RefreshCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import logo from '../../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 
@@ -16,6 +16,8 @@ export default function SourcePage() {
   const [connectionStatus, setConnectionStatus] = useState<'untested' | 'connected'>('untested');
   const [toastMessage, setToastMessage] = useState('');
   const [toastTone, setToastTone] = useState<'success' | 'error' | ''>('');
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastProgress, setToastProgress] = useState(100);
   const [isBackupStreaming, setIsBackupStreaming] = useState(false);
   const [queueManagers, setQueueManagers] = useState<QueueManager[]>([]);
   const [backupNotice, setBackupNotice] = useState<{ message: string; tone: 'success' | 'error' | '' }>({
@@ -51,6 +53,8 @@ export default function SourcePage() {
   const sourceScpKey = 'sourceScp';
   const [isTransitioning] = useState(false);
   const [showBackupModal, setShowBackupModal] = useState(false);
+  const toastDurationMs = 3000;
+  const toastFadeMs = 300;
   const router = useRouter();
 
   const resetProgress = () => {
@@ -94,13 +98,28 @@ export default function SourcePage() {
   }, []);
 
   useEffect(() => {
-    if (!toastMessage) return;
-    const timer = setTimeout(() => {
+    if (!toastMessage) {
+      setToastVisible(false);
+      setToastProgress(100);
+      return;
+    }
+    setToastVisible(true);
+    setToastProgress(100);
+    const animationFrame = requestAnimationFrame(() => {
+      setToastProgress(0);
+    });
+    const fadeDelay = Math.max(toastDurationMs - toastFadeMs, 0);
+    const fadeTimer = setTimeout(() => setToastVisible(false), fadeDelay);
+    const clearTimer = setTimeout(() => {
       setToastMessage('');
       setToastTone('');
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [toastMessage]);
+    }, toastDurationMs);
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      clearTimeout(fadeTimer);
+      clearTimeout(clearTimer);
+    };
+  }, [toastMessage, toastDurationMs, toastFadeMs]);
 
   useEffect(() => {
     if (!isBackupStreaming) return;
@@ -784,8 +803,18 @@ export default function SourcePage() {
               </div>
               {backupNotice.message && (
                 <div className="text-xs font-semibold text-right">
-                  <span className={`inline-block px-3 py-1 rounded-full ${noticeClasses}`}>
-                    {backupNotice.message}
+                  <span
+                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${noticeClasses}`}
+                  >
+                    <span>{backupNotice.message}</span>
+                    <button
+                      type="button"
+                      onClick={() => setBackupNotice({ message: '', tone: '' })}
+                      className="text-gray-700 hover:text-gray-900"
+                      aria-label="Dismiss notice"
+                    >
+                      x
+                    </button>
                   </span>
                 </div>
               )}
@@ -899,7 +928,17 @@ export default function SourcePage() {
       )}
 
       <div className="bg-neutral-900 text-gray-100 rounded-2xl border border-neutral-800 shadow-inner p-6 text-sm">
-        <p className="font-semibold text-white mb-3">Event Logs</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="font-semibold text-white">Event Logs</p>
+          <button
+            type="button"
+            onClick={() => setLogs([])}
+            className="text-neutral-400 hover:text-white"
+            aria-label="Refresh logs"
+          >
+            <RefreshCcw className="w-4 h-4" />
+          </button>
+        </div>
         <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
           {logs.map((line, idx) => (
             <div
@@ -916,7 +955,11 @@ export default function SourcePage() {
       </div>
 
       {toastMessage ? (
-        <div className="fixed bottom-6 right-6 z-50 w-72 rounded-xl border bg-white shadow-lg px-4 py-3">
+        <div
+          className={`fixed bottom-6 right-6 z-50 w-72 rounded-xl border bg-white shadow-lg px-4 py-3 transition-opacity duration-300 ${
+            toastVisible ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
           <p
             className={`text-sm font-semibold ${
               toastTone === 'error' ? 'text-red-600' : 'text-gray-800'
@@ -926,9 +969,10 @@ export default function SourcePage() {
           </p>
           <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-gray-200">
             <div
-              className={`h-full w-full toast-progress ${
+              className={`h-full transition-[width] ease-linear ${
                 toastTone === 'error' ? 'bg-red-500' : 'bg-gray-900'
               }`}
+              style={{ width: `${toastProgress}%`, transitionDuration: `${toastDurationMs}ms` }}
             />
           </div>
         </div>

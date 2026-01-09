@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { ArrowLeft, CloudUpload } from 'lucide-react';
+import { ArrowLeft, CloudUpload, RefreshCcw } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -15,6 +15,8 @@ export default function DestinationPage() {
   const [connectionStatus, setConnectionStatus] = useState<'untested' | 'connected'>('untested');
   const [toastMessage, setToastMessage] = useState('');
   const [toastTone, setToastTone] = useState<'success' | 'error' | ''>('');
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastProgress, setToastProgress] = useState(100);
   const [isMigrateStreaming, setIsMigrateStreaming] = useState(false);
   const [destinationQueues, setDestinationQueues] = useState<QueueManager[]>([]);
   const [backupNotice, setBackupNotice] = useState<{ message: string; tone: 'success' | 'error' | '' }>({
@@ -48,6 +50,8 @@ export default function DestinationPage() {
   const [targetPlatform, setTargetPlatform] = useState('');
   const [computeModel, setComputeModel] = useState('');
   const [deploymentMode, setDeploymentMode] = useState('');
+  const toastDurationMs = 3000;
+  const toastFadeMs = 300;
 
   const platformOptions = useMemo(() => {
     if (targetEnv === 'VM') return ['Linux', 'Windows'];
@@ -130,13 +134,28 @@ export default function DestinationPage() {
   }, []);
 
   useEffect(() => {
-    if (!toastMessage) return;
-    const timer = setTimeout(() => {
+    if (!toastMessage) {
+      setToastVisible(false);
+      setToastProgress(100);
+      return;
+    }
+    setToastVisible(true);
+    setToastProgress(100);
+    const animationFrame = requestAnimationFrame(() => {
+      setToastProgress(0);
+    });
+    const fadeDelay = Math.max(toastDurationMs - toastFadeMs, 0);
+    const fadeTimer = setTimeout(() => setToastVisible(false), fadeDelay);
+    const clearTimer = setTimeout(() => {
       setToastMessage('');
       setToastTone('');
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [toastMessage]);
+    }, toastDurationMs);
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      clearTimeout(fadeTimer);
+      clearTimeout(clearTimer);
+    };
+  }, [toastMessage, toastDurationMs, toastFadeMs]);
 
   useEffect(() => {
     if (!isMigrateStreaming) return;
@@ -178,6 +197,27 @@ export default function DestinationPage() {
         : '';
   const hasSelection = destinationSelectedQueues.length > 0;
   const canMigrate = connectionStatus === 'connected' && hasSelection;
+  const step1Done = Boolean(destinationFieldsFilled);
+  const step2Done = step1Done && (connectionStatus === 'connected' || testDone);
+  const step3Done = step2Done && destinationSelectedQueues.length > 0;
+  const step4Done = step3Done && migrationDone;
+  const requirementSteps = [
+    { label: 'Provide Destination connection credentials', done: step1Done },
+    { label: 'Test connection', done: step2Done },
+    { label: 'Select queue managers for migration', done: step3Done },
+    { label: 'Migrate', done: step4Done },
+  ];
+  const currentRequirementIndex = requirementSteps.findIndex((step) => !step.done);
+  const getRequirementBadgeClass = (index: number) => {
+    const step = requirementSteps[index];
+    const isDone = Boolean(step?.done);
+    const isCurrent = !isDone && currentRequirementIndex === index;
+    return isDone
+      ? 'bg-black text-white'
+      : isCurrent
+        ? 'bg-gray-300 text-gray-700 animate-pulse'
+        : 'bg-gray-200 text-gray-600';
+  };
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -743,35 +783,19 @@ export default function DestinationPage() {
           <div className="relative">
             <div className="absolute left-6 right-6 top-4 h-px bg-gray-200" />
             <div className="flex justify-between relative">
-              {(() => {
-                const steps = [
-                  { label: 'Provide Destination connection credentials', done: Boolean(destinationFieldsFilled) },
-                  { label: 'Test connection', done: connectionStatus === 'connected' || testDone },
-                  { label: 'Select queue managers for migration', done: destinationSelectedQueues.length > 0 },
-                  { label: 'Migrate', done: migrationDone },
-                ];
-                const currentIdx = steps.findIndex((s) => !s.done);
-
-                return steps.map((step, idx) => {
-                  const isDone = step.done;
-                  const isCurrent = !isDone && idx === currentIdx;
-                  const pillClass = isDone
-                    ? 'bg-black text-white'
-                    : isCurrent
-                      ? 'bg-gray-300 text-gray-700 animate-pulse'
-                      : 'bg-gray-200 text-gray-600';
-                  return (
-                    <div key={step.label} className="flex flex-col items-center gap-2">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${pillClass}`}
-                      >
-                        {idx + 1}
-                      </div>
-                      <span className="text-xs font-semibold text-gray-600">{step.label}</span>
+              {requirementSteps.map((step, idx) => {
+                const pillClass = getRequirementBadgeClass(idx);
+                return (
+                  <div key={step.label} className="flex flex-col items-center gap-2">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${pillClass}`}
+                    >
+                      {idx + 1}
                     </div>
-                  );
-                });
-              })()}
+                    <span className="text-xs font-semibold text-gray-600">{step.label}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -779,6 +803,13 @@ export default function DestinationPage() {
         <div className="grid md:grid-cols-2 gap-6 mt-8">
           {/* Destination Connection Card */}
           <div className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm h-full flex flex-col">
+            <div className="mb-3">
+              <span
+                className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(0)}`}
+              >
+                Requirement 1: provide Destination connection credentials
+              </span>
+            </div>
             <div className="flex items-start gap-2">
               <div className="flex-1">
                 <p className="text-lg font-semibold text-gray-800">Destination Connection</p>
@@ -974,23 +1005,39 @@ export default function DestinationPage() {
 
             </div>
 
-            <div className="mt-6 flex items-center justify-center">
-              <button
-                type="button"
-                onClick={handleTestConnection}
-                className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold shadow-sm ${
-                  connectionStatus === 'connected'
-                    ? 'bg-red-500 hover:bg-red-600 text-white'
-                    : 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                }`}
+            <div className="mt-6">
+              <span
+                className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 mb-3 ${getRequirementBadgeClass(1)}`}
               >
-                {connectionStatus === 'connected' ? 'Disconnect' : 'Test Connection'}
-              </button>
+                Requirement 2: Test Connection
+              </span>
+              <div className="flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={handleTestConnection}
+                  className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold shadow-sm ${
+                    connectionStatus === 'connected'
+                      ? 'bg-red-500 hover:bg-red-600 text-white'
+                      : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                  }`}
+                >
+                  {connectionStatus === 'connected' ? 'Disconnect' : 'Test Connection'}
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Queue Managers Card */}
           <div className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm">
+            {step2Done && (
+              <div className="mb-3">
+                <span
+                  className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(2)}`}
+                >
+                  Requirement 3: Select queue managers for migration
+                </span>
+              </div>
+            )}
             <div className="flex flex-col gap-2 mb-4">
               <div className="flex-1 min-w-0">
                 <p className="text-lg font-semibold text-gray-800">Queue Managers</p>
@@ -1000,8 +1047,18 @@ export default function DestinationPage() {
               </div>
               {backupNotice.message && (
                 <div className="text-xs font-semibold text-right">
-                  <span className={`inline-block px-3 py-1 rounded-full ${noticeClasses}`}>
-                    {backupNotice.message}
+                  <span
+                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${noticeClasses}`}
+                  >
+                    <span>{backupNotice.message}</span>
+                    <button
+                      type="button"
+                      onClick={() => setBackupNotice({ message: '', tone: '' })}
+                      className="text-gray-700 hover:text-gray-900"
+                      aria-label="Dismiss notice"
+                    >
+                      x
+                    </button>
                   </span>
                 </div>
               )}
@@ -1053,6 +1110,15 @@ export default function DestinationPage() {
                 </div>
 
                 <div className="mt-6">
+                  {step2Done && (
+                    <div className="mb-3">
+                      <span
+                        className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(3)}`}
+                      >
+                        Requirement 4: Migrate
+                      </span>
+                    </div>
+                  )}
                   <button
                     type="button"
                     disabled={!canMigrate}
@@ -1083,7 +1149,17 @@ export default function DestinationPage() {
       </div>
 
       <div className="bg-neutral-900 text-gray-100 rounded-2xl border border-neutral-800 shadow-inner p-6 text-sm">
-        <p className="font-semibold text-white mb-3">Event Logs</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="font-semibold text-white">Event Logs</p>
+          <button
+            type="button"
+            onClick={() => setLogs([])}
+            className="text-neutral-400 hover:text-white"
+            aria-label="Refresh logs"
+          >
+            <RefreshCcw className="w-4 h-4" />
+          </button>
+        </div>
         <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
           {logs.map((line, idx) => (
             <div
@@ -1100,7 +1176,11 @@ export default function DestinationPage() {
       </div>
 
       {toastMessage ? (
-        <div className="fixed bottom-6 right-6 z-50 w-72 rounded-xl border bg-white shadow-lg px-4 py-3">
+        <div
+          className={`fixed bottom-6 right-6 z-50 w-72 rounded-xl border bg-white shadow-lg px-4 py-3 transition-opacity duration-300 ${
+            toastVisible ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
           <p
             className={`text-sm font-semibold ${
               toastTone === 'error' ? 'text-red-600' : 'text-gray-800'
@@ -1110,9 +1190,10 @@ export default function DestinationPage() {
           </p>
           <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-gray-200">
             <div
-              className={`h-full w-full toast-progress ${
+              className={`h-full transition-[width] ease-linear ${
                 toastTone === 'error' ? 'bg-red-500' : 'bg-gray-900'
               }`}
+              style={{ width: `${toastProgress}%`, transitionDuration: `${toastDurationMs}ms` }}
             />
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { Link2, ArrowLeft, CloudUpload, RefreshCcw } from 'lucide-react';
+import { Link2, ArrowLeft, CloudUpload, Loader2, RefreshCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import logo from '../../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 
@@ -60,11 +60,11 @@ export default function SourcePage() {
     setMigrationDone(false);
     setSelectedQueues([]);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('backupDone', 'false');
-      localStorage.setItem('testDone', 'false');
-      localStorage.setItem('migrationDone', 'false');
-      localStorage.setItem('sourceConnected', 'false');
-      localStorage.setItem('selectedQueues', JSON.stringify([]));
+      localStorage.removeItem('backupDone');
+      localStorage.removeItem('testDone');
+      localStorage.removeItem('migrationDone');
+      localStorage.removeItem('sourceConnected');
+      localStorage.removeItem('selectedQueues');
     }
   };
 
@@ -274,7 +274,11 @@ export default function SourcePage() {
     setSelectedQueues((prev) => {
       const next = prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name];
       if (typeof window !== 'undefined') {
-        localStorage.setItem('selectedQueues', JSON.stringify(next));
+        if (next.length > 0) {
+          localStorage.setItem('selectedQueues', JSON.stringify(next));
+        } else {
+          localStorage.removeItem('selectedQueues');
+        }
       }
       if (next.length === 0) {
         setToastMessage('Select at least one queue manager for backup.');
@@ -359,7 +363,7 @@ export default function SourcePage() {
         setToastTone('error');
         setBackupDone(false);
         if (typeof window !== 'undefined') {
-          localStorage.setItem('backupDone', 'false');
+          localStorage.removeItem('backupDone');
         }
       }
     } catch (error) {
@@ -367,7 +371,7 @@ export default function SourcePage() {
       setToastTone('error');
       setBackupDone(false);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('backupDone', 'false');
+        localStorage.removeItem('backupDone');
       }
       console.error('Backup error:', error);
     } finally {
@@ -376,6 +380,7 @@ export default function SourcePage() {
   };
 
   const hasSelection = selectedQueues.length > 0;
+  const isBackupDisabled = isBackupStreaming || !hasSelection;
   const logLines = logs.length ? logs : ['Take MQ Backup to See the logs'];
   const isLogPlaceholder = logs.length === 0;
   const step1Done = Boolean(fieldsFilled);
@@ -406,11 +411,11 @@ export default function SourcePage() {
     if (isDisconnecting) {
       setConnectionStatus('untested');
       if (typeof window !== 'undefined') {
-        localStorage.setItem('sourceConnected', 'false');
+        localStorage.removeItem('sourceConnected');
         localStorage.removeItem(sourceFormKey);
         localStorage.removeItem(sourceSftpKey);
         localStorage.removeItem(sourceScpKey);
-        localStorage.setItem('selectedQueues', JSON.stringify([]));
+        localStorage.removeItem('selectedQueues');
         setSelectedQueues([]);
       }
       return;
@@ -502,11 +507,19 @@ export default function SourcePage() {
         if (typeof window !== 'undefined') {
           localStorage.setItem('sourceConnected', 'true');
           localStorage.setItem(sourceFormKey, JSON.stringify(form));
-          localStorage.setItem(sourceSftpKey, JSON.stringify(sftpDetails));
-          localStorage.setItem(sourceScpKey, JSON.stringify(scpDetails));
+          if (form.transferMode === 'shared-sftp') {
+            localStorage.setItem(sourceSftpKey, JSON.stringify(sftpDetails));
+            localStorage.removeItem(sourceScpKey);
+          } else if (form.transferMode === 'shared-scp') {
+            localStorage.setItem(sourceScpKey, JSON.stringify(scpDetails));
+            localStorage.removeItem(sourceSftpKey);
+          } else {
+            localStorage.removeItem(sourceSftpKey);
+            localStorage.removeItem(sourceScpKey);
+          }
         }
       } else if (typeof window !== 'undefined') {
-        localStorage.setItem('sourceConnected', 'false');
+        localStorage.removeItem('sourceConnected');
         setConnectionStatus('untested');
       }
     } catch (error) {
@@ -514,7 +527,7 @@ export default function SourcePage() {
       setToastMessage('Connection not successful');
       setToastTone('error');
       if (typeof window !== 'undefined') {
-        localStorage.setItem('sourceConnected', 'false');
+        localStorage.removeItem('sourceConnected');
       }
       console.error('Store server credentials error:', error);
     }
@@ -845,16 +858,20 @@ export default function SourcePage() {
                       </div>
                       <button
                         type="button"
-                        disabled={!hasSelection}
+                        disabled={isBackupDisabled}
                         onClick={handleBackup}
                         className={`inline-flex items-center justify-center gap-2 rounded-lg w-full py-4 text-sm font-semibold shadow-sm ${
-                          hasSelection
-                            ? 'bg-black hover:bg-gray-900 text-white'
-                            : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                          isBackupStreaming
+                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                            : 'bg-black hover:bg-gray-900 text-white'
                         }`}
                       >
-                        <CloudUpload className="w-4 h-4" />
-                        Backup
+                        {isBackupStreaming ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CloudUpload className="w-4 h-4" />
+                        )}
+                        {isBackupStreaming ? 'Backing up...' : 'Backup'}
                       </button>
                     </div>
                   </div>

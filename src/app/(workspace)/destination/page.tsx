@@ -187,7 +187,7 @@ export default function DestinationPage() {
 
   const hasSelection = destinationSelectedQueues.length > 0;
   const isReadyToMigrate = connectionStatus === 'connected' && hasSelection;
-  const canMigrate = isReadyToMigrate && !isMigrateStreaming && !migrationDone;
+  const canMigrate = isReadyToMigrate && !isMigrateStreaming;
   const step1Done = Boolean(destinationFieldsFilled);
   const step2Done = step1Done && (connectionStatus === 'connected' || testDone);
   const step3Done = destinationSelectedQueues.length > 0;
@@ -223,8 +223,8 @@ export default function DestinationPage() {
     setDestinationSelectedQueues([]);
     setDestinationQueues([]);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('destinationTestDone', 'false');
-      localStorage.setItem('destinationMigrationDone', 'false');
+      localStorage.removeItem('destinationTestDone');
+      localStorage.removeItem('destinationMigrationDone');
     }
   };
 
@@ -236,7 +236,11 @@ export default function DestinationPage() {
         setToastTone('error');
       }
       if (typeof window !== 'undefined' && connectionStatus === 'connected') {
-        localStorage.setItem(destinationQueuesKey, JSON.stringify(next));
+        if (next.length > 0) {
+          localStorage.setItem(destinationQueuesKey, JSON.stringify(next));
+        } else {
+          localStorage.removeItem(destinationQueuesKey);
+        }
       }
       return next;
     });
@@ -249,8 +253,8 @@ export default function DestinationPage() {
       setDestinationSelectedQueues([]);
       setDestinationQueues([]);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('destinationTestDone', 'false');
-        localStorage.setItem(destinationConnectedKey, 'false');
+        localStorage.removeItem('destinationTestDone');
+        localStorage.removeItem(destinationConnectedKey);
         localStorage.removeItem(destinationQueuesKey);
       }
       return;
@@ -293,8 +297,8 @@ export default function DestinationPage() {
         setToastMessage('Missing access token. Please log in again.');
         setToastTone('error');
         if (typeof window !== 'undefined') {
-          localStorage.setItem('destinationTestDone', 'false');
-          localStorage.setItem(destinationConnectedKey, 'false');
+          localStorage.removeItem('destinationTestDone');
+          localStorage.removeItem(destinationConnectedKey);
         }
         return;
       }
@@ -365,7 +369,11 @@ export default function DestinationPage() {
         if (typeof window !== 'undefined') {
           localStorage.setItem('destinationTestDone', 'true');
           localStorage.setItem(destinationConnectedKey, 'true');
-          localStorage.setItem(destinationQueuesKey, JSON.stringify(destinationSelectedQueues));
+          if (destinationSelectedQueues.length > 0) {
+            localStorage.setItem(destinationQueuesKey, JSON.stringify(destinationSelectedQueues));
+          } else {
+            localStorage.removeItem(destinationQueuesKey);
+          }
         }
         const logTarget = isCloud ? `${targetEnv} ${targetPlatform}` : form.server;
         setLogs((prev) => [
@@ -379,8 +387,8 @@ export default function DestinationPage() {
         setConnectionStatus('untested');
         setTestDone(false);
         if (typeof window !== 'undefined') {
-          localStorage.setItem('destinationTestDone', 'false');
-          localStorage.setItem(destinationConnectedKey, 'false');
+          localStorage.removeItem('destinationTestDone');
+          localStorage.removeItem(destinationConnectedKey);
         }
       }
     } catch (error) {
@@ -389,15 +397,15 @@ export default function DestinationPage() {
       setToastMessage('Connection not successful');
       setToastTone('error');
       if (typeof window !== 'undefined') {
-        localStorage.setItem('destinationTestDone', 'false');
-        localStorage.setItem(destinationConnectedKey, 'false');
+        localStorage.removeItem('destinationTestDone');
+        localStorage.removeItem(destinationConnectedKey);
       }
       console.error('Destination connection error:', error);
     }
   };
 
   const handleMigrate = async () => {
-    if (connectionStatus !== 'connected' || isMigrateStreaming || migrationDone) {
+    if (connectionStatus !== 'connected' || isMigrateStreaming) {
       return;
     }
     if (destinationSelectedQueues.length === 0) {
@@ -409,7 +417,7 @@ export default function DestinationPage() {
     setToastTone('');
     setMigrationDone(false);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('destinationMigrationDone', 'false');
+      localStorage.removeItem('destinationMigrationDone');
     }
     setIsMigrateStreaming(true);
 
@@ -487,7 +495,7 @@ export default function DestinationPage() {
           setToastTone('error');
           setMigrationDone(false);
           if (typeof window !== 'undefined') {
-            localStorage.setItem('destinationMigrationDone', 'false');
+            localStorage.removeItem('destinationMigrationDone');
           }
         }
         return;
@@ -642,7 +650,7 @@ export default function DestinationPage() {
         setToastTone('error');
         setMigrationDone(false);
         if (typeof window !== 'undefined') {
-          localStorage.setItem('destinationMigrationDone', 'false');
+          localStorage.removeItem('destinationMigrationDone');
         }
       }
     } catch (error) {
@@ -651,7 +659,7 @@ export default function DestinationPage() {
       setToastTone('error');
       setMigrationDone(false);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('destinationMigrationDone', 'false');
+        localStorage.removeItem('destinationMigrationDone');
       }
     } finally {
       setIsMigrateStreaming(false);
@@ -1119,11 +1127,7 @@ export default function DestinationPage() {
                     className={`inline-flex items-center justify-center gap-2 rounded-lg w-full py-4 text-sm font-semibold shadow-sm ${
                       isMigrateStreaming
                         ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                        : migrationDone
-                          ? 'bg-black text-white cursor-not-allowed'
-                          : isReadyToMigrate
-                            ? 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                            : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : 'bg-black hover:bg-gray-900 text-white'
                     }`}
                   >
                     {isMigrateStreaming ? (

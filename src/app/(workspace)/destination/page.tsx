@@ -1048,14 +1048,22 @@ export default function DestinationPage() {
                 <div className="space-y-1">
                   <label className="text-sm font-semibold text-gray-700">Target Environment</label>
                   <Select value={targetEnv} onValueChange={handleTargetEnvChange}>
-                    <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus-visible:border-gray-400 focus-visible:ring-2 focus-visible:ring-gray-300">
-                      <SelectValue placeholder="Select environment" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-lg border border-gray-200 bg-white text-gray-800">
-                      <SelectItem value={clearSelectValue}>None</SelectItem>
-                      <SelectItem value="VM">VM</SelectItem>
-                      <SelectItem value="Host Systems">Host Systems</SelectItem>
-                      <SelectItem value="Cloud">Cloud</SelectItem>
+                  <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus-visible:border-gray-400 focus-visible:ring-2 focus-visible:ring-gray-300 *:data-[slot=select-value]:mx-auto *:data-[slot=select-value]:w-full *:data-[slot=select-value]:justify-center *:data-[slot=select-value]:text-center">
+                    <SelectValue placeholder="Select environment" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-lg border border-gray-200 bg-white text-gray-800">
+                      <SelectItem className="justify-center text-center" value={clearSelectValue}>
+                        None
+                      </SelectItem>
+                      <SelectItem className="justify-center text-center" value="VM">
+                        VM
+                      </SelectItem>
+                      <SelectItem className="justify-center text-center" value="Host Systems">
+                        Host Systems
+                      </SelectItem>
+                      <SelectItem className="justify-center text-center" value="Cloud">
+                        Cloud
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1066,13 +1074,15 @@ export default function DestinationPage() {
                     onValueChange={handleTargetPlatformChange}
                     disabled={!targetEnv}
                   >
-                    <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus-visible:border-gray-400 focus-visible:ring-2 focus-visible:ring-gray-300 disabled:opacity-60">
+                    <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus-visible:border-gray-400 focus-visible:ring-2 focus-visible:ring-gray-300 disabled:opacity-60 *:data-[slot=select-value]:mx-auto *:data-[slot=select-value]:w-full *:data-[slot=select-value]:justify-center *:data-[slot=select-value]:text-center">
                       <SelectValue placeholder="Select platform" />
                     </SelectTrigger>
                     <SelectContent className="rounded-lg border border-gray-200 bg-white text-gray-800">
-                      <SelectItem value={clearSelectValue}>None</SelectItem>
+                      <SelectItem className="justify-center text-center" value={clearSelectValue}>
+                        None
+                      </SelectItem>
                       {platformOptions.map((opt) => (
-                        <SelectItem key={opt} value={opt}>
+                        <SelectItem className="justify-center text-center" key={opt} value={opt}>
                           {opt}
                         </SelectItem>
                       ))}
@@ -1089,13 +1099,15 @@ export default function DestinationPage() {
                     onValueChange={handleComputeModelChange}
                     disabled={!computeOptions.length}
                   >
-                    <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus-visible:border-gray-400 focus-visible:ring-2 focus-visible:ring-gray-300 disabled:opacity-60">
+                    <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus-visible:border-gray-400 focus-visible:ring-2 focus-visible:ring-gray-300 disabled:opacity-60 *:data-[slot=select-value]:mx-auto *:data-[slot=select-value]:w-full *:data-[slot=select-value]:justify-center *:data-[slot=select-value]:text-center">
                       <SelectValue placeholder="Select compute model" />
                     </SelectTrigger>
                     <SelectContent className="rounded-lg border border-gray-200 bg-white text-gray-800">
-                      <SelectItem value={clearSelectValue}>None</SelectItem>
+                      <SelectItem className="justify-center text-center" value={clearSelectValue}>
+                        None
+                      </SelectItem>
                       {computeOptions.map((opt) => (
-                        <SelectItem key={opt} value={opt}>
+                        <SelectItem className="justify-center text-center" key={opt} value={opt}>
                           {opt}
                         </SelectItem>
                       ))}
@@ -1109,13 +1121,15 @@ export default function DestinationPage() {
                     onValueChange={handleDeploymentModeChange}
                     disabled={!deploymentOptions.length}
                   >
-                    <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus-visible:border-gray-400 focus-visible:ring-2 focus-visible:ring-gray-300 disabled:opacity-60">
+                    <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus-visible:border-gray-400 focus-visible:ring-2 focus-visible:ring-gray-300 disabled:opacity-60 *:data-[slot=select-value]:mx-auto *:data-[slot=select-value]:w-full *:data-[slot=select-value]:justify-center *:data-[slot=select-value]:text-center">
                       <SelectValue placeholder="Select deployment mode" />
                     </SelectTrigger>
                     <SelectContent className="rounded-lg border border-gray-200 bg-white text-gray-800">
-                      <SelectItem value={clearSelectValue}>None</SelectItem>
+                      <SelectItem className="justify-center text-center" value={clearSelectValue}>
+                        None
+                      </SelectItem>
                       {deploymentOptions.map((opt) => (
-                        <SelectItem key={opt} value={opt}>
+                        <SelectItem className="justify-center text-center" key={opt} value={opt}>
                           {opt}
                         </SelectItem>
                       ))}

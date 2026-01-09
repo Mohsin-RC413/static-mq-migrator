@@ -786,14 +786,14 @@ export default function SourcePage() {
               <button
                 type="button"
                 onClick={handleConnectToggle}
-                className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold shadow-sm ${
+                className={`inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                   connectionStatus === 'connected'
-                    ? 'bg-red-500 hover:bg-red-600 text-white'
-                    : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                    ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-200/60 focus-visible:ring-red-300 focus-visible:ring-offset-gray-100'
+                    : 'bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-200/70 hover:from-emerald-600 hover:via-emerald-600 hover:to-teal-600 hover:shadow-emerald-300/80 active:scale-[0.98] focus-visible:ring-emerald-300 focus-visible:ring-offset-gray-100'
                 }`}
               >
+                <span>{connectionStatus === 'connected' ? 'Disconnect' : 'Connect'}</span>
                 <Link2 className="w-4 h-4" />
-                {connectionStatus === 'connected' ? 'Disconnect' : 'Connect'}
               </button>
             </div>
           </div>

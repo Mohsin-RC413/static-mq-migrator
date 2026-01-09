@@ -5,6 +5,13 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import logo from '../../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
 
 type QueueManager = {
   name: string;
@@ -48,6 +55,7 @@ export default function DestinationPage() {
   const [deploymentMode, setDeploymentMode] = useState('');
   const toastDurationMs = 3000;
   const toastFadeMs = 300;
+  const clearSelectValue = '__clear__';
 
   const platformOptions = useMemo(() => {
     if (targetEnv === 'VM') return ['Linux', 'Windows'];
@@ -684,12 +692,28 @@ export default function DestinationPage() {
     setDeploymentMode('');
   };
 
+  const handleTargetEnvChange = (value: string) => {
+    const nextValue = value === clearSelectValue ? '' : value;
+    resetPlatformAndBelow(nextValue);
+  };
+
+  const handleTargetPlatformChange = (value: string) => {
+    const nextValue = value === clearSelectValue ? '' : value;
+    resetComputeAndBelow(nextValue);
+  };
+
+  const handleComputeModelChange = (value: string) => {
+    const nextValue = value === clearSelectValue ? '' : value;
+    resetDeployment(nextValue);
+  };
+
   const handleDeploymentModeChange = (value: string) => {
-    setDeploymentMode(value);
+    const nextValue = value === clearSelectValue ? '' : value;
+    setDeploymentMode(nextValue);
     if (typeof window !== 'undefined') {
       localStorage.setItem(
         destinationDropdownKey,
-        JSON.stringify({ targetEnv, targetPlatform, computeModel, deploymentMode: value }),
+        JSON.stringify({ targetEnv, targetPlatform, computeModel, deploymentMode: nextValue }),
       );
     }
   };
@@ -837,67 +861,80 @@ export default function DestinationPage() {
               <div className="grid md:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-sm font-semibold text-gray-700">Target Environment</label>
-                  <select
-                    value={targetEnv}
-                    onChange={(e) => resetPlatformAndBelow(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300"
-                  >
-                    <option value="">Select environment</option>
-                    <option value="VM">VM</option>
-                    <option value="Host Systems">Host Systems</option>
-                    <option value="Cloud">Cloud</option>
-                  </select>
+                  <Select value={targetEnv} onValueChange={handleTargetEnvChange}>
+                    <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus-visible:border-gray-400 focus-visible:ring-2 focus-visible:ring-gray-300">
+                      <SelectValue placeholder="Select environment" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-lg border border-gray-200 bg-white text-gray-800">
+                      <SelectItem value={clearSelectValue}>None</SelectItem>
+                      <SelectItem value="VM">VM</SelectItem>
+                      <SelectItem value="Host Systems">Host Systems</SelectItem>
+                      <SelectItem value="Cloud">Cloud</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-semibold text-gray-700">Target Platform</label>
-                  <select
+                  <Select
                     value={targetPlatform}
-                    onChange={(e) => resetComputeAndBelow(e.target.value)}
+                    onValueChange={handleTargetPlatformChange}
                     disabled={!targetEnv}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300 disabled:opacity-60"
                   >
-                    <option value="">Select platform</option>
-                    {platformOptions.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus-visible:border-gray-400 focus-visible:ring-2 focus-visible:ring-gray-300 disabled:opacity-60">
+                      <SelectValue placeholder="Select platform" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-lg border border-gray-200 bg-white text-gray-800">
+                      <SelectItem value={clearSelectValue}>None</SelectItem>
+                      {platformOptions.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {opt}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-sm font-semibold text-gray-700">Compute Model</label>
-                  <select
+                  <Select
                     value={computeModel}
-                    onChange={(e) => resetDeployment(e.target.value)}
+                    onValueChange={handleComputeModelChange}
                     disabled={!computeOptions.length}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300 disabled:opacity-60"
                   >
-                    <option value="">Select compute model</option>
-                    {computeOptions.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus-visible:border-gray-400 focus-visible:ring-2 focus-visible:ring-gray-300 disabled:opacity-60">
+                      <SelectValue placeholder="Select compute model" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-lg border border-gray-200 bg-white text-gray-800">
+                      <SelectItem value={clearSelectValue}>None</SelectItem>
+                      {computeOptions.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {opt}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-semibold text-gray-700">Deployment Mode</label>
-                  <select
+                  <Select
                     value={deploymentMode}
-                    onChange={(e) => handleDeploymentModeChange(e.target.value)}
+                    onValueChange={handleDeploymentModeChange}
                     disabled={!deploymentOptions.length}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:ring-2 focus:ring-gray-300 disabled:opacity-60"
                   >
-                    <option value="">Select deployment mode</option>
-                    {deploymentOptions.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus-visible:border-gray-400 focus-visible:ring-2 focus-visible:ring-gray-300 disabled:opacity-60">
+                      <SelectValue placeholder="Select deployment mode" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-lg border border-gray-200 bg-white text-gray-800">
+                      <SelectItem value={clearSelectValue}>None</SelectItem>
+                      {deploymentOptions.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {opt}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

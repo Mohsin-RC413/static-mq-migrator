@@ -13,20 +13,16 @@ type QueueManager = {
 
 export default function DestinationPage() {
   const [connectionStatus, setConnectionStatus] = useState<'untested' | 'connected'>('untested');
-  const [connectionMessage, setConnectionMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastTone, setToastTone] = useState<'success' | 'error' | ''>('');
+  const [isMigrateStreaming, setIsMigrateStreaming] = useState(false);
   const [destinationQueues, setDestinationQueues] = useState<QueueManager[]>([]);
   const [backupNotice, setBackupNotice] = useState<{ message: string; tone: 'success' | 'error' | '' }>({
     message: '',
     tone: '',
   });
   const [destinationSelectedQueues, setDestinationSelectedQueues] = useState<string[]>([]);
-  const [logs, setLogs] = useState<string[]>([
-    'Validating credentials for destination ... not tested',
-    'Enumerating Queue Managers ... pending',
-    'Queued request for channel sync ... pending',
-    'Fetching TLS cert metadata ... pending',
-    'Preparing backup directory ... pending',
-  ]);
+  const [logs, setLogs] = useState<string[]>([]);
   const [testDone, setTestDone] = useState(false);
   const [migrationDone, setMigrationDone] = useState(false);
   const router = useRouter();
@@ -133,6 +129,38 @@ export default function DestinationPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => {
+      setToastMessage('');
+      setToastTone('');
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
+
+  useEffect(() => {
+    if (!isMigrateStreaming) return;
+    const socket = new WebSocket('ws://192.168.18.35:8080/logs');
+
+    socket.onopen = () => {
+      console.log('WebSocket connection established');
+    };
+    socket.onmessage = (event) => {
+      console.log('Message received:', event.data);
+      setLogs((prevLogs) => [...prevLogs, event.data]);
+    };
+    socket.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, [isMigrateStreaming]);
+
   const visibleQueues = useMemo(() => destinationQueues, [destinationQueues]);
 
   const statusChip =
@@ -157,7 +185,6 @@ export default function DestinationPage() {
 
   const resetProgress = () => {
     setConnectionStatus('untested');
-    setConnectionMessage('');
     setTestDone(false);
     setMigrationDone(false);
     setDestinationSelectedQueues([]);
@@ -190,7 +217,6 @@ export default function DestinationPage() {
   const handleTestConnection = async () => {
     if (connectionStatus === 'connected') {
       setConnectionStatus('untested');
-      setConnectionMessage('');
       setTestDone(false);
       setDestinationSelectedQueues([]);
       setDestinationQueues([]);
@@ -203,7 +229,8 @@ export default function DestinationPage() {
     }
 
     setBackupNotice({ message: '', tone: '' });
-    setConnectionMessage('');
+    setToastMessage('');
+    setToastTone('');
 
     const isCloud = targetEnv === 'Cloud';
     const payload = isCloud
@@ -236,7 +263,8 @@ export default function DestinationPage() {
       if (!accessToken) {
         setConnectionStatus('untested');
         setTestDone(false);
-        setConnectionMessage('Missing access token. Please log in again.');
+        setToastMessage('Missing access token. Please log in again.');
+        setToastTone('error');
         if (typeof window !== 'undefined') {
           localStorage.setItem('destinationTestDone', 'false');
           localStorage.setItem(destinationConnectedKey, 'false');
@@ -302,7 +330,8 @@ export default function DestinationPage() {
         }
       }
 
-      setConnectionMessage(message);
+      setToastMessage(message);
+      setToastTone(isSuccess ? 'success' : 'error');
       if (isSuccess) {
         setConnectionStatus('connected');
         setTestDone(true);
@@ -330,7 +359,8 @@ export default function DestinationPage() {
     } catch (error) {
       setConnectionStatus('untested');
       setTestDone(false);
-      setConnectionMessage('Connection not successful');
+      setToastMessage('Connection not successful');
+      setToastTone('error');
       if (typeof window !== 'undefined') {
         localStorage.setItem('destinationTestDone', 'false');
         localStorage.setItem(destinationConnectedKey, 'false');
@@ -351,6 +381,7 @@ export default function DestinationPage() {
       return;
     }
     setBackupNotice({ message: '', tone: '' });
+    setIsMigrateStreaming(true);
 
     const accessToken =
       typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
@@ -576,6 +607,8 @@ export default function DestinationPage() {
       if (typeof window !== 'undefined') {
         localStorage.setItem('destinationMigrationDone', 'false');
       }
+    } finally {
+      setIsMigrateStreaming(false);
     }
   };
 
@@ -941,7 +974,7 @@ export default function DestinationPage() {
 
             </div>
 
-            <div className="mt-6 flex items-center gap-4">
+            <div className="mt-6 flex items-center justify-center">
               <button
                 type="button"
                 onClick={handleTestConnection}
@@ -953,12 +986,6 @@ export default function DestinationPage() {
               >
                 {connectionStatus === 'connected' ? 'Disconnect' : 'Test Connection'}
               </button>
-              {connectionMessage ? (
-                <span className="text-xs font-semibold text-gray-600">{connectionMessage}</span>
-              ) : null}
-              <span className={`ml-auto text-xs font-semibold px-3 py-1 rounded-full ${statusChip}`}>
-                {statusLabel}
-              </span>
             </div>
           </div>
 
@@ -1071,6 +1098,25 @@ export default function DestinationPage() {
           ))}
         </div>
       </div>
+
+      {toastMessage ? (
+        <div className="fixed bottom-6 right-6 z-50 w-72 rounded-xl border bg-white shadow-lg px-4 py-3">
+          <p
+            className={`text-sm font-semibold ${
+              toastTone === 'error' ? 'text-red-600' : 'text-gray-800'
+            }`}
+          >
+            {toastMessage}
+          </p>
+          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-gray-200">
+            <div
+              className={`h-full w-full toast-progress ${
+                toastTone === 'error' ? 'bg-red-500' : 'bg-gray-900'
+              }`}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -14,7 +14,8 @@ type QueueManager = {
 
 export default function SourcePage() {
   const [connectionStatus, setConnectionStatus] = useState<'untested' | 'connected'>('untested');
-  const [connectionMessage, setConnectionMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastTone, setToastTone] = useState<'success' | 'error' | ''>('');
   const [isBackupStreaming, setIsBackupStreaming] = useState(false);
   const [queueManagers, setQueueManagers] = useState<QueueManager[]>([]);
   const [backupNotice, setBackupNotice] = useState<{ message: string; tone: 'success' | 'error' | '' }>({
@@ -91,6 +92,15 @@ export default function SourcePage() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => {
+      setToastMessage('');
+      setToastTone('');
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
 
   useEffect(() => {
     if (!isBackupStreaming) return;
@@ -387,7 +397,6 @@ export default function SourcePage() {
 
     if (isDisconnecting) {
       setConnectionStatus('untested');
-      setConnectionMessage('');
       if (typeof window !== 'undefined') {
         localStorage.setItem('sourceConnected', 'false');
         localStorage.removeItem(sourceFormKey);
@@ -478,7 +487,8 @@ export default function SourcePage() {
         }
       }
 
-      setConnectionMessage(message);
+      setToastMessage(message);
+      setToastTone(isSuccess ? 'success' : 'error');
       if (isSuccess) {
         setConnectionStatus('connected');
         if (typeof window !== 'undefined') {
@@ -493,7 +503,8 @@ export default function SourcePage() {
       }
     } catch (error) {
       setConnectionStatus('untested');
-      setConnectionMessage('Connection not successful');
+      setToastMessage('Connection not successful');
+      setToastTone('error');
       if (typeof window !== 'undefined') {
         localStorage.setItem('sourceConnected', 'false');
       }
@@ -738,25 +749,19 @@ export default function SourcePage() {
               >
                 Requirement 2: Test connection
               </span>
-              <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={handleConnectToggle}
-                className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold shadow-sm ${
-                  connectionStatus === 'connected'
-                    ? 'bg-red-500 hover:bg-red-600 text-white'
-                    : 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                }`}
-              >
-                <Link2 className="w-4 h-4" />
-                {connectionStatus === 'connected' ? 'Disconnect' : 'Connect'}
-              </button>
-              {connectionMessage ? (
-                <span className="text-xs font-semibold text-gray-600">{connectionMessage}</span>
-              ) : null}
-              <span className={`ml-auto text-xs font-semibold px-3 py-1 rounded-full ${statusChip}`}>
-                {statusLabel}
-              </span>
+              <div className="flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={handleConnectToggle}
+                  className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold shadow-sm ${
+                    connectionStatus === 'connected'
+                      ? 'bg-red-500 hover:bg-red-600 text-white'
+                      : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                  }`}
+                >
+                  <Link2 className="w-4 h-4" />
+                  {connectionStatus === 'connected' ? 'Disconnect' : 'Connect'}
+                </button>
               </div>
             </div>
           </div>
@@ -909,6 +914,25 @@ export default function SourcePage() {
           ))}
         </div>
       </div>
+
+      {toastMessage ? (
+        <div className="fixed bottom-6 right-6 z-50 w-72 rounded-xl border bg-white shadow-lg px-4 py-3">
+          <p
+            className={`text-sm font-semibold ${
+              toastTone === 'error' ? 'text-red-600' : 'text-gray-800'
+            }`}
+          >
+            {toastMessage}
+          </p>
+          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-gray-200">
+            <div
+              className={`h-full w-full toast-progress ${
+                toastTone === 'error' ? 'bg-red-500' : 'bg-gray-900'
+              }`}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

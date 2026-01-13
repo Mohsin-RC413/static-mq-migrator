@@ -26,6 +26,27 @@ type QueueManager = {
 
 };
 
+type MqReportEntry = {
+  name: string;
+  type?: string;
+};
+
+type MqReportSection = {
+  listOfObjects?: MqReportEntry[];
+  count?: number;
+};
+
+type MqReportResponse = {
+  queue?: MqReportSection;
+  subscription?: MqReportSection;
+  channel?: MqReportSection;
+  topic?: MqReportSection;
+  service?: MqReportSection;
+  channelAuth?: MqReportSection;
+  listener?: MqReportSection;
+  nameList?: MqReportSection;
+};
+
 
 
 type GuideStep = {
@@ -67,6 +88,13 @@ export default function SourcePage() {
   const [selectedQueues, setSelectedQueues] = useState<string[]>([]);
 
   const [logs, setLogs] = useState<string[]>([]);
+
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState('');
+  const [reportData, setReportData] = useState<MqReportResponse | null>(null);
+  const [reportQueueName, setReportQueueName] = useState('');
+  const [reportExpanded, setReportExpanded] = useState<Record<string, boolean>>({});
 
   const [form, setForm] = useState({
 
@@ -1115,6 +1143,78 @@ export default function SourcePage() {
 
   };
 
+  const handleViewReport = async (mqName: string) => {
+    setReportQueueName(mqName);
+    setReportError('');
+    setReportData(null);
+    setShowReportModal(true);
+    setReportLoading(true);
+
+    try {
+      const accessToken =
+        typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      if (!accessToken) {
+        setReportError('Missing access token. Please log in again.');
+        setReportLoading(false);
+        return;
+      }
+      const response = await fetch('http://192.168.18.35:8080/v1/get-mq-details', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ mqName }),
+      });
+      const responseText = await response.text();
+      let data: unknown = null;
+
+      try {
+        data = responseText ? JSON.parse(responseText) : null;
+      } catch (parseError) {
+        console.warn('MQ report response was not JSON:', parseError);
+        data = null;
+      }
+
+      if (!response.ok) {
+        setReportError('Unable to load MQ report.');
+        return;
+      }
+
+      if (!data || typeof data !== 'object') {
+        setReportError('No report data returned.');
+        return;
+      }
+
+      setReportData(data as MqReportResponse);
+      setReportExpanded({
+        queue: true,
+        subscription: true,
+        channel: true,
+        topic: true,
+        service: true,
+        channelAuth: true,
+        listener: true,
+        nameList: true,
+      });
+    } catch (error) {
+      console.error('MQ report fetch error:', error);
+      setReportError('Unable to load MQ report.');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleCloseReportModal = () => {
+    setShowReportModal(false);
+    setReportError('');
+    setReportData(null);
+    setReportQueueName('');
+    setReportExpanded({});
+    setReportLoading(false);
+  };
+
 
 
   const hasSelection = selectedQueues.length > 0;
@@ -1165,6 +1265,36 @@ export default function SourcePage() {
 
         : 'bg-gray-200 text-gray-600';
 
+  };
+
+  const reportSectionOrder = [
+    { key: 'queue', label: 'queue' },
+    { key: 'subscription', label: 'subscription' },
+    { key: 'channel', label: 'channel' },
+    { key: 'topic', label: 'topic' },
+    { key: 'service', label: 'service' },
+    { key: 'channelAuth', label: 'channelAuth' },
+    { key: 'listener', label: 'listener' },
+    { key: 'nameList', label: 'nameList' },
+  ];
+
+  const reportSections = useMemo(
+    () =>
+      reportSectionOrder.map((section) => ({
+        ...section,
+        data: reportData?.[section.key as keyof MqReportResponse],
+      })),
+    [reportData],
+  );
+
+  const getReportCount = (section?: MqReportSection) =>
+    section?.count ?? section?.listOfObjects?.length ?? 0;
+
+  const toggleReportSection = (key: string) => {
+    setReportExpanded((prev) => {
+      const current = prev[key] ?? true;
+      return { ...prev, [key]: !current };
+    });
   };
 
 
@@ -2074,6 +2204,8 @@ export default function SourcePage() {
 
                                 type="button"
 
+                                onClick={() => handleViewReport(queue.name)}
+                                aria-label={`View report for ${queue.name}`}
                                 className="text-gray-600 text-sm font-semibold text-right hover:text-gray-700"
 
                               >
@@ -2226,6 +2358,90 @@ export default function SourcePage() {
 
         </div>
 
+      )}
+
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4 py-6">
+          <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full p-6 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold text-gray-500">MQ Report</p>
+                <p className="text-lg font-semibold text-gray-800">
+                  {reportQueueName || 'Queue Manager'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseReportModal}
+                className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold"
+              >
+                Close
+              </button>
+            </div>
+
+            {reportLoading ? (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading MQ report...
+              </div>
+            ) : reportError ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {reportError}
+              </div>
+            ) : reportData ? (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 max-h-[60vh] overflow-y-auto space-y-3">
+                {reportSections.map((section) => {
+                  const sectionData = section.data;
+                  const items = sectionData?.listOfObjects ?? [];
+                  const isOpen = reportExpanded[section.key] ?? true;
+                  return (
+                    <div
+                      key={section.key}
+                      className="rounded-lg border border-gray-200 bg-white p-3"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleReportSection(section.key)}
+                        className="w-full flex items-center justify-between text-left"
+                        aria-expanded={isOpen}
+                      >
+                        <span className="text-sm font-semibold text-gray-800">
+                          {section.label} ({getReportCount(sectionData)})
+                        </span>
+                        <span className="text-xs font-mono text-gray-500">
+                          {isOpen ? '[-]' : '[+]'}
+                        </span>
+                      </button>
+                      {isOpen && (
+                        <ul className="mt-2 space-y-1 border-l border-gray-200 pl-4">
+                          {items.length ? (
+                            items.map((item) => (
+                              <li
+                                key={`${section.key}-${item.name}`}
+                                className="flex items-start gap-2 text-xs text-gray-700"
+                              >
+                                <span className="font-mono">{item.name}</span>
+                                {item.type ? (
+                                  <span className="text-gray-500">[{item.type}]</span>
+                                ) : null}
+                              </li>
+                            ))
+                          ) : (
+                            <li className="text-xs text-gray-500">No entries.</li>
+                          )}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                No report data loaded.
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
 

@@ -6,7 +6,7 @@ import Image from 'next/image';
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 
-import { Link2, ArrowLeft, CloudUpload, Eye, EyeOff, Loader2, RefreshCcw } from 'lucide-react';
+import { Link2, ArrowLeft, CloudUpload, Download, Eye, EyeOff, Loader2, RefreshCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import logo from '../../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 import {
@@ -1215,6 +1215,26 @@ export default function SourcePage() {
     setReportLoading(false);
   };
 
+  const handleDownloadReport = () => {
+    if (!reportData) {
+      setReportError('No report data to download.');
+      return;
+    }
+    const lines = buildReportLines();
+    const pdfBlob = buildPdfDocument(lines);
+    const url = URL.createObjectURL(pdfBlob);
+    const safeName = reportQueueName
+      ? reportQueueName.replace(/[^A-Za-z0-9_.-]+/g, '_')
+      : 'mq_report';
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${safeName}_report.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
 
 
   const hasSelection = selectedQueues.length > 0;
@@ -1295,6 +1315,98 @@ export default function SourcePage() {
       const current = prev[key] ?? true;
       return { ...prev, [key]: !current };
     });
+  };
+
+  const buildReportLines = () => {
+    const lines: string[] = [];
+    const timestamp = new Date().toISOString().replace('T', ' ').replace('Z', ' UTC');
+    lines.push('MQ Report');
+    if (reportQueueName) {
+      lines.push(`Queue Manager: ${reportQueueName}`);
+    }
+    lines.push(`Generated: ${timestamp}`);
+    lines.push('');
+    reportSections.forEach((section) => {
+      const sectionData = section.data;
+      const items = sectionData?.listOfObjects ?? [];
+      lines.push(`${section.label} (${getReportCount(sectionData)})`);
+      if (items.length) {
+        items.forEach((item) => {
+          const typeSuffix = item.type ? ` [${item.type}]` : '';
+          lines.push(`  - ${item.name}${typeSuffix}`);
+        });
+      } else {
+        lines.push('  (No entries)');
+      }
+      lines.push('');
+    });
+    return lines;
+  };
+
+  const escapePdfText = (value: string) =>
+    value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+
+  const getByteLength = (value: string) => new TextEncoder().encode(value).length;
+
+  const buildPdfDocument = (lines: string[]) => {
+    const lineHeight = 14;
+    const startY = 760;
+    const bottomMargin = 40;
+    const linesPerPage = Math.max(1, Math.floor((startY - bottomMargin) / lineHeight));
+    const pages: string[][] = [];
+
+    for (let i = 0; i < lines.length; i += linesPerPage) {
+      pages.push(lines.slice(i, i + linesPerPage));
+    }
+
+    const header = '%PDF-1.4\n';
+    const objectsById: string[] = [];
+
+    objectsById[1] = '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n';
+    const kids = pages.map((_, idx) => `${4 + idx} 0 R`).join(' ');
+    objectsById[2] = `2 0 obj\n<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>\nendobj\n`;
+    objectsById[3] = '3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n';
+
+    pages.forEach((pageLines, idx) => {
+      const pageObjNum = 4 + idx;
+      const contentObjNum = 4 + pages.length + idx;
+      objectsById[pageObjNum] =
+        `${pageObjNum} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjNum} 0 R >>\nendobj\n`;
+
+      const contentLines = pageLines.length ? pageLines : [''];
+      const content =
+        'BT\n/F1 11 Tf\n' +
+        `${lineHeight} TL\n` +
+        `72 ${startY} Td\n` +
+        contentLines
+          .map((line, lineIndex) => {
+            const escaped = escapePdfText(line);
+            return lineIndex === 0 ? `(${escaped}) Tj` : `T* (${escaped}) Tj`;
+          })
+          .join('\n') +
+        '\nET';
+      const contentLength = getByteLength(content);
+      objectsById[contentObjNum] =
+        `${contentObjNum} 0 obj\n<< /Length ${contentLength} >>\nstream\n${content}\nendstream\nendobj\n`;
+    });
+
+    const objects = objectsById.slice(1);
+    let offset = getByteLength(header);
+    const offsets = [0];
+    objects.forEach((obj) => {
+      offsets.push(offset);
+      offset += getByteLength(obj);
+    });
+
+    const xrefStart = offset;
+    let xref = `xref\n0 ${offsets.length}\n0000000000 65535 f \n`;
+    offsets.slice(1).forEach((objOffset) => {
+      xref += `${String(objOffset).padStart(10, '0')} 00000 n \n`;
+    });
+    const trailer = `trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+    const pdf = header + objects.join('') + xref + trailer;
+
+    return new Blob([pdf], { type: 'application/pdf' });
   };
 
 
@@ -2370,13 +2482,28 @@ export default function SourcePage() {
                   {reportQueueName || 'Queue Manager'}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleCloseReportModal}
-                className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold"
-              >
-                Close
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadReport}
+                  disabled={!reportData || reportLoading}
+                  aria-label="Download MQ report"
+                  className={`p-2 rounded-lg border text-sm font-semibold ${
+                    reportData && !reportLoading
+                      ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCloseReportModal}
+                  className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold"
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
             {reportLoading ? (

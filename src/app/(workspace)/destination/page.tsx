@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { ArrowLeft, CloudUpload, Link2, Loader2, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, CloudUpload, Download, Link2, Loader2, RefreshCcw } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
@@ -25,6 +25,27 @@ type QueueManager = {
   state?: string;
 };
 
+type MqReportEntry = {
+  name: string;
+  type?: string;
+};
+
+type MqReportSection = {
+  listOfObjects?: MqReportEntry[];
+  count?: number;
+};
+
+type MqReportResponse = {
+  queue?: MqReportSection;
+  subscription?: MqReportSection;
+  channel?: MqReportSection;
+  topic?: MqReportSection;
+  service?: MqReportSection;
+  channelAuth?: MqReportSection;
+  listener?: MqReportSection;
+  nameList?: MqReportSection;
+};
+
 type GuideStep = {
   title: string;
   body: string;
@@ -42,6 +63,12 @@ export default function DestinationPage() {
   const [destinationQueues, setDestinationQueues] = useState<QueueManager[]>([]);
   const [destinationSelectedQueues, setDestinationSelectedQueues] = useState<string[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState('');
+  const [reportData, setReportData] = useState<MqReportResponse | null>(null);
+  const [reportQueueName, setReportQueueName] = useState('');
+  const [reportExpanded, setReportExpanded] = useState<Record<string, boolean>>({});
   const [testDone, setTestDone] = useState(false);
   const [migrationDone, setMigrationDone] = useState(false);
   const router = useRouter();
@@ -391,6 +418,128 @@ export default function DestinationPage() {
       : isCurrent
         ? 'bg-gray-300 text-gray-700 animate-pulse'
         : 'bg-gray-200 text-gray-600';
+  };
+
+  const reportSectionOrder = [
+    { key: 'queue', label: 'queue' },
+    { key: 'subscription', label: 'subscription' },
+    { key: 'channel', label: 'channel' },
+    { key: 'topic', label: 'topic' },
+    { key: 'service', label: 'service' },
+    { key: 'channelAuth', label: 'channelAuth' },
+    { key: 'listener', label: 'listener' },
+    { key: 'nameList', label: 'nameList' },
+  ];
+
+  const reportSections = useMemo(
+    () =>
+      reportSectionOrder.map((section) => ({
+        ...section,
+        data: reportData?.[section.key as keyof MqReportResponse],
+      })),
+    [reportData],
+  );
+
+  const getReportCount = (section?: MqReportSection) =>
+    section?.count ?? section?.listOfObjects?.length ?? 0;
+
+  const toggleReportSection = (key: string) => {
+    setReportExpanded((prev) => {
+      const current = prev[key] ?? true;
+      return { ...prev, [key]: !current };
+    });
+  };
+
+  const buildReportLines = () => {
+    const lines: string[] = [];
+    const timestamp = new Date().toISOString().replace('T', ' ').replace('Z', ' UTC');
+    lines.push('MQ Report');
+    if (reportQueueName) {
+      lines.push(`Queue Manager: ${reportQueueName}`);
+    }
+    lines.push(`Generated: ${timestamp}`);
+    lines.push('');
+    reportSections.forEach((section) => {
+      const sectionData = section.data;
+      const items = sectionData?.listOfObjects ?? [];
+      lines.push(`${section.label} (${getReportCount(sectionData)})`);
+      if (items.length) {
+        items.forEach((item) => {
+          const typeSuffix = item.type ? ` [${item.type}]` : '';
+          lines.push(`  - ${item.name}${typeSuffix}`);
+        });
+      } else {
+        lines.push('  (No entries)');
+      }
+      lines.push('');
+    });
+    return lines;
+  };
+
+  const escapePdfText = (value: string) =>
+    value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+
+  const getByteLength = (value: string) => new TextEncoder().encode(value).length;
+
+  const buildPdfDocument = (lines: string[]) => {
+    const lineHeight = 14;
+    const startY = 760;
+    const bottomMargin = 40;
+    const linesPerPage = Math.max(1, Math.floor((startY - bottomMargin) / lineHeight));
+    const pages: string[][] = [];
+
+    for (let i = 0; i < lines.length; i += linesPerPage) {
+      pages.push(lines.slice(i, i + linesPerPage));
+    }
+
+    const header = '%PDF-1.4\n';
+    const objectsById: string[] = [];
+
+    objectsById[1] = '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n';
+    const kids = pages.map((_, idx) => `${4 + idx} 0 R`).join(' ');
+    objectsById[2] = `2 0 obj\n<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>\nendobj\n`;
+    objectsById[3] = '3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n';
+
+    pages.forEach((pageLines, idx) => {
+      const pageObjNum = 4 + idx;
+      const contentObjNum = 4 + pages.length + idx;
+      objectsById[pageObjNum] =
+        `${pageObjNum} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjNum} 0 R >>\nendobj\n`;
+
+      const contentLines = pageLines.length ? pageLines : [''];
+      const content =
+        'BT\n/F1 11 Tf\n' +
+        `${lineHeight} TL\n` +
+        `72 ${startY} Td\n` +
+        contentLines
+          .map((line, lineIndex) => {
+            const escaped = escapePdfText(line);
+            return lineIndex === 0 ? `(${escaped}) Tj` : `T* (${escaped}) Tj`;
+          })
+          .join('\n') +
+        '\nET';
+      const contentLength = getByteLength(content);
+      objectsById[contentObjNum] =
+        `${contentObjNum} 0 obj\n<< /Length ${contentLength} >>\nstream\n${content}\nendstream\nendobj\n`;
+    });
+
+    const objects = objectsById.slice(1);
+    let offset = getByteLength(header);
+    const offsets = [0];
+    objects.forEach((obj) => {
+      offsets.push(offset);
+      offset += getByteLength(obj);
+    });
+
+    const xrefStart = offset;
+    let xref = `xref\n0 ${offsets.length}\n0000000000 65535 f \n`;
+    offsets.slice(1).forEach((objOffset) => {
+      xref += `${String(objOffset).padStart(10, '0')} 00000 n \n`;
+    });
+    const trailer = `trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+    const pdf = header + objects.join('') + xref + trailer;
+
+    return new Blob([pdf], { type: 'application/pdf' });
   };
 
   const handleChange = (key: keyof typeof form, value: string) => {
@@ -845,6 +994,98 @@ export default function DestinationPage() {
     } finally {
       setIsMigrateStreaming(false);
     }
+  };
+
+  const handleViewReport = async (mqName: string) => {
+    setReportQueueName(mqName);
+    setReportError('');
+    setReportData(null);
+    setShowReportModal(true);
+    setReportLoading(true);
+
+    try {
+      const accessToken =
+        typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      if (!accessToken) {
+        setReportError('Missing access token. Please log in again.');
+        setReportLoading(false);
+        return;
+      }
+      const response = await fetch('http://192.168.18.35:8080/v1/get-mq-details', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ mqName }),
+      });
+      const responseText = await response.text();
+      let data: unknown = null;
+
+      try {
+        data = responseText ? JSON.parse(responseText) : null;
+      } catch (parseError) {
+        console.warn('MQ report response was not JSON:', parseError);
+        data = null;
+      }
+
+      if (!response.ok) {
+        setReportError('Unable to load MQ report.');
+        return;
+      }
+
+      if (!data || typeof data !== 'object') {
+        setReportError('No report data returned.');
+        return;
+      }
+
+      setReportData(data as MqReportResponse);
+      setReportExpanded({
+        queue: true,
+        subscription: true,
+        channel: true,
+        topic: true,
+        service: true,
+        channelAuth: true,
+        listener: true,
+        nameList: true,
+      });
+    } catch (error) {
+      console.error('MQ report fetch error:', error);
+      setReportError('Unable to load MQ report.');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleCloseReportModal = () => {
+    setShowReportModal(false);
+    setReportError('');
+    setReportData(null);
+    setReportQueueName('');
+    setReportExpanded({});
+    setReportLoading(false);
+  };
+
+  const handleDownloadReport = () => {
+    if (!reportData) {
+      setReportError('No report data to download.');
+      return;
+    }
+    const lines = buildReportLines();
+    const pdfBlob = buildPdfDocument(lines);
+    const url = URL.createObjectURL(pdfBlob);
+    const safeName = reportQueueName
+      ? reportQueueName.replace(/[^A-Za-z0-9_.-]+/g, '_')
+      : 'mq_report';
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${safeName}_report.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   const resetPlatformAndBelow = (env: string) => {
@@ -1343,6 +1584,8 @@ export default function DestinationPage() {
                         <div className="text-gray-600 text-sm">{queue.state || 'Unknown'}</div>
                         <button
                           type="button"
+                          onClick={() => handleViewReport(queue.name)}
+                          aria-label={`View report for ${queue.name}`}
                           className="text-gray-600 text-sm font-semibold text-right hover:text-gray-700"
                         >
                           View
@@ -1396,6 +1639,105 @@ export default function DestinationPage() {
           </div>
         </div>
       </div>
+
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4 py-6">
+          <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full p-6 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold text-gray-500">MQ Report</p>
+                <p className="text-lg font-semibold text-gray-800">
+                  {reportQueueName || 'Queue Manager'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadReport}
+                  disabled={!reportData || reportLoading}
+                  aria-label="Download MQ report"
+                  className={`p-2 rounded-lg border text-sm font-semibold ${
+                    reportData && !reportLoading
+                      ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCloseReportModal}
+                  className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            {reportLoading ? (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading MQ report...
+              </div>
+            ) : reportError ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {reportError}
+              </div>
+            ) : reportData ? (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 max-h-[60vh] overflow-y-auto space-y-3">
+                {reportSections.map((section) => {
+                  const sectionData = section.data;
+                  const items = sectionData?.listOfObjects ?? [];
+                  const isOpen = reportExpanded[section.key] ?? true;
+                  return (
+                    <div
+                      key={section.key}
+                      className="rounded-lg border border-gray-200 bg-white p-3"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleReportSection(section.key)}
+                        className="w-full flex items-center justify-between text-left"
+                        aria-expanded={isOpen}
+                      >
+                        <span className="text-sm font-semibold text-gray-800">
+                          {section.label} ({getReportCount(sectionData)})
+                        </span>
+                        <span className="text-xs font-mono text-gray-500">
+                          {isOpen ? '[-]' : '[+]'}
+                        </span>
+                      </button>
+                      {isOpen && (
+                        <ul className="mt-2 space-y-1 border-l border-gray-200 pl-4">
+                          {items.length ? (
+                            items.map((item) => (
+                              <li
+                                key={`${section.key}-${item.name}`}
+                                className="flex items-start gap-2 text-xs text-gray-700"
+                              >
+                                <span className="font-mono">{item.name}</span>
+                                {item.type ? (
+                                  <span className="text-gray-500">[{item.type}]</span>
+                                ) : null}
+                              </li>
+                            ))
+                          ) : (
+                            <li className="text-xs text-gray-500">No entries.</li>
+                          )}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                No report data loaded.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bg-neutral-900 text-gray-100 rounded-2xl border border-neutral-800 shadow-inner p-6 text-sm">
         <div className="flex items-center justify-between mb-3">

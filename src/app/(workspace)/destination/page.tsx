@@ -1232,10 +1232,8 @@ export default function DestinationPage() {
         </div>
 
         {/* Progress checkpoints */}
-        <div className="mt-6 bg-white border border-gray-200 rounded-2xl shadow-sm px-6 py-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-sm font-semibold text-gray-700">Progress</div>
-          </div>
+        {/* <div className="mt-6 bg-white border border-gray-200 rounded-2xl shadow-sm px-6 py-5"> */}
+          
           <div className="relative mt-4">
             <div className="absolute left-6 right-6 top-6 h-px bg-gray-200" />
             <div className="flex justify-between relative">
@@ -1254,7 +1252,7 @@ export default function DestinationPage() {
               })}
             </div>
           </div>
-        </div>
+        {/* </div> */}
 
         <div className="grid md:grid-cols-2 gap-6 mt-8">
           {/* Destination Connection Card */}

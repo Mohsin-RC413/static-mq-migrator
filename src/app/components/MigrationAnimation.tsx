@@ -19,7 +19,7 @@ const features = [
 
 export function MigrationAnimation() {
   return (
-    <div className="h-full bg-gradient-to-br from-black via-neutral-950 to-neutral-900 flex items-center justify-center p-12 font-['Montserrat']">
+    <div className="h-full bg-gradient-to-br from-black via-neutral-950 to-neutral-900 flex items-center justify-center p-12 font-['Roboto']">
       <div className="max-w-2xl w-full">
         {/* Title */}
         <motion.div

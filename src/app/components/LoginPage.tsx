@@ -109,15 +109,15 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex font-['Roboto']">
       {/* Left Half - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-start justify-center px-8 py-12 lg:px-16 pt-24 lg:pt-32 relative font-['Montserrat']">
+      <div className="w-full lg:w-1/2 flex items-start justify-center px-8 py-12 lg:px-16 pt-24 lg:pt-32 relative">
         {/* Login Form Card */}
         <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/70">
           <div className="bg-[#0b3b5a] px-8 py-5">
-            <div className="flex items-center gap-4">
-              <div className="h-7 w-[88px] overflow-hidden rounded-md bg-white shadow-sm">
-                <Image src={logo} alt="Royal Cyber" className="h-full w-full object-contain" priority />
+            <div className="flex items-center justify-center gap-4">
+              <div className="h-8 w-[104px] overflow-hidden rounded-md bg-white shadow-sm">
+                <Image src={logo} alt="Royal Cyber" className="h-full w-full object-cover" priority />
               </div>
               <div className="h-6 w-px bg-white/40" />
               <span className="text-sm font-semibold tracking-[0.28em] text-white">

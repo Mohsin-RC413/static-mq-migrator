@@ -171,9 +171,9 @@ export default function SourcePage() {
 
 
 
-  const guideSteps = useMemo<GuideStep[]>(
+  const guideSteps = useMemo<GuideStep[]>(() => {
 
-    () => [
+    const steps: GuideStep[] = [
 
       {
 
@@ -197,31 +197,41 @@ export default function SourcePage() {
 
       },
 
-      {
+    ];
 
-        title: 'Requirement 3: Select queue managers for backup',
 
-        body: 'Pick at least one queue manager to include in the backup.',
+    if (connectionStatus === 'connected') {
 
-        targetRef: queueManagersRef,
+      steps.push(
 
-      },
+        {
 
-      {
+          title: 'Requirement 3: Select queue managers for backup',
 
-        title: 'Requirement 4: Backup',
+          body: 'Pick at least one queue manager to include in the backup.',
 
-        body: 'Start the backup and track progress in the Event Logs.',
+          targetRef: queueManagersRef,
 
-        targetRef: backupActionRef,
+        },
 
-      },
+        {
 
-    ],
+          title: 'Requirement 4: Backup',
 
-    [],
+          body: 'Start the backup and track progress in the Event Logs.',
 
-  );
+          targetRef: backupActionRef,
+
+        },
+
+      );
+
+    }
+
+
+    return steps;
+
+  }, [connectionStatus]);
 
 
 

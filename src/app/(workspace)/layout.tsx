@@ -21,6 +21,10 @@ const navItems = [
 export default function WorkspaceLayout({ children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
+  const normalizedPath =
+    pathname && pathname.length > 1 && pathname.endsWith('/')
+      ? pathname.slice(0, -1)
+      : pathname;
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
       const keysToClear = [
@@ -70,15 +74,17 @@ export default function WorkspaceLayout({ children }: Props) {
         <aside className="w-64 bg-[#d1d5db] text-gray-800 flex flex-col border-r border-gray-300">
           <nav className="mt-6 flex-1 px-3 space-y-1">
             {navItems.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive =
+                normalizedPath === item.href ||
+                (normalizedPath && normalizedPath.startsWith(`${item.href}/`));
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`block rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
+                  className={`block rounded-lg px-4 py-3 text-base font-medium transition-colors ${
                     isActive
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-700 hover:bg-gray-300 hover:text-gray-900'
+                      ? 'bg-white text-gray-900 shadow-md'
+                      : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900'
                   }`}
                 >
                   {item.label}

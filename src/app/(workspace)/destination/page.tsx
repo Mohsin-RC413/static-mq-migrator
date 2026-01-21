@@ -398,8 +398,7 @@ export default function DestinationPage() {
   const step2Done = step1Done && (connectionStatus === 'connected' || testDone);
   const step3Done = destinationSelectedQueues.length > 0;
   const step4Done = step3Done && migrationDone;
-  const logLines = logs.length ? logs : ['Migrate MQ to See the logs'];
-  const isLogPlaceholder = logs.length === 0;
+  const logLines = logs;
   const requirementSteps = [
     { label: 'Provide Destination connection credentials', done: step1Done },
     { label: 'Test connection', done: step2Done },
@@ -703,14 +702,6 @@ export default function DestinationPage() {
             localStorage.removeItem(destinationQueuesKey);
           }
         }
-        const logTarget = isCloud ? `${targetEnv} ${targetPlatform}` : form.server;
-        setLogs((prev) => [
-          `$ Validating credentials for ${logTarget || 'destination'} ... OK`,
-          '$ Enumerating Queue Managers ... 4 found',
-          `$ Selected: ${destinationSelectedQueues.join(', ') || 'None selected'}`,
-          '$ Waiting for migration. Click "Migrate" to start...',
-          ...prev.slice(3),
-        ]);
       } else {
         setConnectionStatus('untested');
         setTestDone(false);
@@ -812,12 +803,6 @@ export default function DestinationPage() {
           if (typeof window !== 'undefined') {
             localStorage.setItem('destinationMigrationDone', 'true');
           }
-          setLogs((prev) => [
-            `$ Migration started for: ${destinationSelectedQueues.join(', ')}`,
-            `$ ${message}`,
-            '$ Waiting for next step...',
-            ...prev.slice(3),
-          ]);
         } else {
           setToastMessage(message);
           setToastTone('error');
@@ -967,12 +952,6 @@ export default function DestinationPage() {
         if (typeof window !== 'undefined') {
           localStorage.setItem('destinationMigrationDone', 'true');
         }
-        setLogs((prev) => [
-          `$ Migration started for: ${destinationSelectedQueues.join(', ')}`,
-          `$ ${mqscMessage}`,
-          '$ Waiting for next step...',
-          ...prev.slice(3),
-        ]);
       } else {
         setToastMessage(mqscMessage);
         setToastTone('error');
@@ -1649,11 +1628,7 @@ export default function DestinationPage() {
                   <span className="text-[11px] text-neutral-500 mt-1 font-semibold">
                     #{String(idx + 1).padStart(2, '0')}
                   </span>
-                  {isLogPlaceholder ? (
-                    <p className="text-gray-400 font-mono text-sm leading-6">{line}</p>
-                  ) : (
-                    <p className="text-emerald-200 font-mono text-sm leading-6">$ {line}</p>
-                  )}
+                  <p className="text-emerald-200 font-mono text-sm leading-6">{line}</p>
                 </div>
               ))}
             </div>

@@ -1097,18 +1097,6 @@ export default function SourcePage() {
 
         }
 
-        setLogs((prev) => [
-
-          `$ Backup started for: ${selectedQueues.join(', ')}`,
-
-          `$ Transfer type: ${transferType ?? 'Local'}`,
-
-          `$ ${message}`,
-
-          ...prev.slice(3),
-
-        ]);
-
         setShowBackupModal(true);
 
       } else {
@@ -1249,9 +1237,7 @@ export default function SourcePage() {
 
   const isBackupDisabled = isBackupStreaming || !hasSelection;
 
-  const logLines = logs.length ? logs : ['Take MQ Backup to See the logs'];
-
-  const isLogPlaceholder = logs.length === 0;
+  const logLines = logs;
 
   const step1Done = Boolean(fieldsFilled);
 
@@ -2386,11 +2372,7 @@ export default function SourcePage() {
                   <span className="text-[11px] text-neutral-500 mt-1 font-semibold">
                     #{String(idx + 1).padStart(2, '0')}
                   </span>
-                  {isLogPlaceholder ? (
-                    <p className="text-gray-400 font-mono text-sm leading-6">{line}</p>
-                  ) : (
-                    <p className="text-emerald-200 font-mono text-sm leading-6">$ {line}</p>
-                  )}
+                  <p className="text-emerald-200 font-mono text-sm leading-6">{line}</p>
                 </div>
               ))}
             </div>

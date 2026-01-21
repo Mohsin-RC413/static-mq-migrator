@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -11,7 +11,6 @@ import logo from '../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 import { MigrationAnimation } from './MigrationAnimation';
 
 export function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -108,6 +107,9 @@ export function LoginPage() {
     }
   };
 
+  const headerClipPath =
+    'polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px))';
+
   return (
     <div className="min-h-screen bg-gray-50 flex font-['Roboto']">
       {/* Left Half - Login Form */}
@@ -117,12 +119,23 @@ export function LoginPage() {
           <div
             className="bg-[#0b3b5a] px-8 py-5"
             style={{
-              clipPath:
-                'polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px))',
+              clipPath: headerClipPath,
             }}
           >
             <div className="flex items-center justify-center gap-4">
-              <Image src={logo} alt="Royal Cyber" className="h-12 w-auto" priority />
+              <div
+                className="relative h-10 bg-white overflow-hidden"
+                style={{ clipPath: headerClipPath, aspectRatio: '483 / 163' }}
+              >
+                <Image
+                  src={logo}
+                  alt="Royal Cyber"
+                  fill
+                  sizes="120px"
+                  className="object-contain"
+                  priority
+                />
+              </div>
               <div className="h-6 w-px bg-white/40" />
               <span className="text-sm font-semibold tracking-[0.28em] text-white">
                 MIGRATION
@@ -165,19 +178,12 @@ export function LoginPage() {
                 </label>
                 <div className="relative">
                   <Input
-                    type={showPassword ? 'text' : 'password'}
+                    type="password"
                     placeholder="Enter your password"
                     className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pr-10 text-slate-900 placeholder:text-slate-400 focus-visible:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-200"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
                 </div>
               </div>
 

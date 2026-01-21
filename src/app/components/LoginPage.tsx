@@ -112,98 +112,107 @@ export function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex">
       {/* Left Half - Login Form */}
       <div className="w-full lg:w-1/2 flex items-start justify-center px-8 py-12 lg:px-16 pt-24 lg:pt-32 relative font-['Montserrat']">
-        {/* Logo in Top Left */}
-        <div className="absolute top-8 left-8">
-          <Image src={logo} alt="Royal Cyber" className="h-16 w-auto" priority />
-        </div>
-        
         {/* Login Form Card */}
-        <div className="bg-gray-100 rounded-2xl p-10 w-full border border-gray-200 shadow-sm">
-          {/* Header */}
-          <div className="mb-10 space-y-3">
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-700 leading-tight">
-              LOGIN TO ROYAL CYBER MIGRATION WORKSPACE
-            </h1>
-            <p className="text-lg text-gray-600 leading-relaxed">
-              Connect, back up, and migrate Queue Managers across environments with guided steps.
-            </p>
+        <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/70">
+          <div className="bg-[#0b3b5a] px-8 py-5">
+            <div className="flex items-center gap-4">
+              <div className="h-7 w-[88px] overflow-hidden rounded-md bg-white shadow-sm">
+                <Image src={logo} alt="Royal Cyber" className="h-full w-full object-contain" priority />
+              </div>
+              <div className="h-6 w-px bg-white/40" />
+              <span className="text-sm font-semibold tracking-[0.28em] text-white">
+                MIGRATION
+              </span>
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Username Field */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-800">
-                Username
-              </label>
-              <div className="relative">
-                <Input
-                  type="text"
-                  placeholder="Enter your username"
-                  className="w-full pr-10 border border-gray-300 bg-white focus-visible:border-gray-400 focus-visible:ring-1 focus-visible:ring-gray-400"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                />
-              </div>
+          <div className="px-8 py-10 lg:px-10">
+            {/* Header */}
+            <div className="mb-8 space-y-3">
+              <h1 className="text-3xl font-semibold text-slate-900 leading-tight">
+                Welcome Back
+              </h1>
+              <p className="text-base text-slate-600 leading-relaxed">
+                Connect, back up, and migrate IBM MQ across environments with guided steps.
+              </p>
             </div>
 
-            {/* Password Field */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-800">
-                Password
-              </label>
-              <div className="relative">
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  className="w-full pr-10 border border-gray-300 bg-white focus-visible:border-gray-400 focus-visible:ring-1 focus-visible:ring-gray-400"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Remember Device and Forgot Password */}
-            <div className="flex items-center justify-between gap-6">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="remember"
-                  checked={rememberDevice}
-                  onCheckedChange={(checked) => setRememberDevice(checked === true)}
-                />
-                <label
-                  htmlFor="remember"
-                  className="text-sm text-gray-700 cursor-pointer select-none"
-                >
-                  Remember this device
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Username Field */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-800">
+                  Username
                 </label>
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder="Enter your username"
+                    className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pr-10 text-slate-900 placeholder:text-slate-400 focus-visible:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-200"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                  />
+                </div>
               </div>
-              <a href="#" className="text-sm text-gray-600 hover:text-gray-700 font-medium underline hover:font-semibold">
-                Forgot password?
-              </a>
-            </div>
 
-            {/* Continue Button */}
-            <Button
-              type="submit"
-              className="w-full bg-black hover:bg-neutral-800 text-gray-200 py-6 flex items-center justify-center relative"
-              disabled={isSubmitting}
-            >
-              <span className="mx-auto">{isSubmitting ? 'Logging in...' : 'Login'}</span>
-              <ArrowRight className="h-4 w-4 text-gray-300 absolute right-4" />
-            </Button>
+              {/* Password Field */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-800">
+                  Password
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter your password"
+                    className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pr-10 text-slate-900 placeholder:text-slate-400 focus-visible:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-200"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
 
-            {/* Help Text */}
-            <p className="text-center text-sm text-gray-600 underline hover:font-semibold">
-              Need help? Contact your team administrator.
-            </p>
-          </form>
+              {/* Remember Device and Forgot Password */}
+              <div className="flex items-center justify-between gap-6">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="remember"
+                    checked={rememberDevice}
+                    onCheckedChange={(checked) => setRememberDevice(checked === true)}
+                  />
+                  <label
+                    htmlFor="remember"
+                    className="text-sm text-slate-600 cursor-pointer select-none"
+                  >
+                    Remember this device
+                  </label>
+                </div>
+                <a href="#" className="text-sm font-medium text-slate-600 hover:text-slate-800 underline underline-offset-4">
+                  Forgot password?
+                </a>
+              </div>
+
+              {/* Continue Button */}
+              <Button
+                type="submit"
+                className="w-full rounded-xl bg-slate-900 py-6 text-white shadow-lg shadow-slate-900/15 hover:bg-slate-800 flex items-center justify-center relative"
+                disabled={isSubmitting}
+              >
+                <span className="mx-auto">{isSubmitting ? 'Logging in...' : 'Login'}</span>
+                <ArrowRight className="h-4 w-4 text-white/70 absolute right-4" />
+              </Button>
+
+              {/* Help Text */}
+              <p className="text-center text-sm text-slate-500 underline underline-offset-4 hover:text-slate-700">
+                Need help? Contact your team administrator.
+              </p>
+            </form>
+          </div>
         </div>
       </div>
 

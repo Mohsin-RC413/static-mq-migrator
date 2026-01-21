@@ -33,6 +33,29 @@ type MqReportSection = {
   count?: number;
 };
 
+type DestinationSummarySection = {
+  system?: number;
+  other?: number;
+};
+
+type DestinationSummaryResponse = {
+  responseCode?: string;
+  responseMsg?: string;
+  data?: Record<
+    string,
+    {
+      queue?: DestinationSummarySection;
+      subscription?: DestinationSummarySection;
+      channel?: DestinationSummarySection;
+      topic?: DestinationSummarySection;
+      service?: DestinationSummarySection;
+      channelAuth?: DestinationSummarySection;
+      listener?: DestinationSummarySection;
+      nameList?: DestinationSummarySection;
+    }
+  >;
+};
+
 type MqReportResponse = {
   queue?: MqReportSection;
   subscription?: MqReportSection;
@@ -394,6 +417,7 @@ export default function DestinationPage() {
   const hasSelection = destinationSelectedQueues.length > 0;
   const isReadyToMigrate = connectionStatus === 'connected' && hasSelection;
   const canMigrate = isReadyToMigrate && !isMigrateStreaming;
+  const canViewReport = migrationDone;
   const step1Done = Boolean(destinationFieldsFilled);
   const step2Done = step1Done && (connectionStatus === 'connected' || testDone);
   const step3Done = destinationSelectedQueues.length > 0;
@@ -439,6 +463,18 @@ export default function DestinationPage() {
 
   const getReportCount = (section?: MqReportSection) =>
     section?.count ?? section?.listOfObjects?.length ?? 0;
+
+  const buildSummarySection = (section?: DestinationSummarySection): MqReportSection => {
+    const systemCount = section?.system ?? 0;
+    const otherCount = section?.other ?? 0;
+    return {
+      count: systemCount + otherCount,
+      listOfObjects: [
+        { name: `system: ${systemCount}` },
+        { name: `other: ${otherCount}` },
+      ],
+    };
+  };
 
   const toggleReportSection = (key: string) => {
     setReportExpanded((prev) => {
@@ -988,15 +1024,20 @@ export default function DestinationPage() {
         setReportLoading(false);
         return;
       }
-      const response = await fetch('http://192.168.18.35:8080/v1/get-mq-details', {
+      const response = await fetch(
+        `http://192.168.18.35:8080/v1/destination/summary?accessToken=${encodeURIComponent(
+          accessToken,
+        )}`,
+        {
         method: 'POST',
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ mqName }),
-      });
+        body: JSON.stringify({ mqNames: [mqName] }),
+      },
+      );
       const responseText = await response.text();
       let data: unknown = null;
 
@@ -1017,7 +1058,30 @@ export default function DestinationPage() {
         return;
       }
 
-      setReportData(data as MqReportResponse);
+      const summaryResponse = data as DestinationSummaryResponse;
+      const responseCode = summaryResponse?.responseCode
+        ? String(summaryResponse.responseCode)
+        : '';
+      if (responseCode !== '00') {
+        setReportError(summaryResponse?.responseMsg || 'Unable to load MQ report.');
+        return;
+      }
+      const summaryData = summaryResponse?.data?.[mqName];
+      if (!summaryData) {
+        setReportError('No report data returned.');
+        return;
+      }
+
+      setReportData({
+        queue: buildSummarySection(summaryData.queue),
+        subscription: buildSummarySection(summaryData.subscription),
+        channel: buildSummarySection(summaryData.channel),
+        topic: buildSummarySection(summaryData.topic),
+        service: buildSummarySection(summaryData.service),
+        channelAuth: buildSummarySection(summaryData.channelAuth),
+        listener: buildSummarySection(summaryData.listener),
+        nameList: buildSummarySection(summaryData.nameList),
+      });
       setReportExpanded({
         queue: true,
         subscription: true,
@@ -1554,14 +1618,24 @@ export default function DestinationPage() {
                           <span>{queue.name}</span>
                         </div>
                         <div className="text-gray-600 text-sm">{queue.state || 'Unknown'}</div>
-                        <button
-                          type="button"
-                          onClick={() => handleViewReport(queue.name)}
-                          aria-label={`View report for ${queue.name}`}
-                          className="text-gray-600 text-sm font-semibold text-right hover:text-gray-700"
+                        <div
+                          className="text-right"
+                          title={!canViewReport ? 'Migrate to view summary of migration' : undefined}
                         >
-                          View
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => handleViewReport(queue.name)}
+                            aria-label={`View report for ${queue.name}`}
+                            disabled={!canViewReport}
+                            className={`text-sm font-semibold text-right ${
+                              canViewReport
+                                ? 'text-gray-600 hover:text-gray-700'
+                                : 'text-gray-400 cursor-not-allowed'
+                            }`}
+                          >
+                            View
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

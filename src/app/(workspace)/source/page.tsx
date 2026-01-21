@@ -1780,7 +1780,9 @@ export default function SourcePage() {
 
             ref={sourceFormRef}
 
-            className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm flex flex-col min-h-[520px]"
+            className={`rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm flex flex-col min-h-[520px] ${
+              connectionStatus === 'connected' ? 'hidden' : ''
+            }`}
 
           >
 
@@ -2183,7 +2185,9 @@ export default function SourcePage() {
 
             ref={queueManagersRef}
 
-            className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm flex flex-col min-h-[520px]"
+            className={`rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm flex flex-col min-h-[520px] ${
+              connectionStatus === 'connected' ? '' : 'hidden'
+            }`}
 
           >
 
@@ -2308,55 +2312,39 @@ export default function SourcePage() {
 
 
                     <div ref={backupActionRef} className="mt-auto">
-
                       <div className="mb-3">
-
                         <span
-
                           className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(3)}`}
-
                         >
-
                           Requirement 4: Backup
-
                         </span>
-
                       </div>
-
-                      <button
-
-                        type="button"
-
-                        disabled={isBackupDisabled}
-
-                        onClick={handleBackup}
-
-                        className={`inline-flex items-center justify-center gap-2 rounded-lg w-full py-4 text-sm font-semibold shadow-sm ${
-
-                          isBackupStreaming
-
-                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-
-                            : 'bg-black hover:bg-gray-900 text-white'
-
-                        }`}
-
-                      >
-
-                        {isBackupStreaming ? (
-
-                          <Loader2 className="w-4 h-4 animate-spin" />
-
-                        ) : (
-
-                          <CloudUpload className="w-4 h-4" />
-
-                        )}
-
-                        {isBackupStreaming ? 'Backing up...' : 'Backup'}
-
-                      </button>
-
+                      <div className="flex flex-col gap-3 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={handleConnectToggle}
+                          className="flex-1 rounded-lg border border-red-500 px-6 py-4 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                        >
+                          Disconnect
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isBackupDisabled}
+                          onClick={handleBackup}
+                          className={`inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-6 py-4 text-sm font-semibold shadow-sm ${
+                            isBackupStreaming
+                              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                              : 'bg-black hover:bg-gray-900 text-white'
+                          }`}
+                        >
+                          {isBackupStreaming ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <CloudUpload className="w-4 h-4" />
+                          )}
+                          {isBackupStreaming ? 'Backing up...' : 'Backup'}
+                        </button>
+                      </div>
                     </div>
 
                   </div>
@@ -2364,6 +2352,39 @@ export default function SourcePage() {
                 )}
 
               </div>
+
+         
+
+          <div className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm flex flex-col min-h-[520px] text-sm">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-lg font-semibold text-gray-800">Event Logs</p>
+              <button
+                type="button"
+                onClick={() => setLogs([])}
+                className="text-gray-500 hover:text-gray-700"
+                aria-label="Refresh logs"
+              >
+                <RefreshCcw className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-2 overflow-y-auto pr-1 flex-1">
+              {logLines.map((line, idx) => (
+                <div
+                  key={`${line}-${idx}`}
+                  className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-3 py-2"
+                >
+                  <span className="text-[11px] text-gray-500 mt-1 font-semibold">
+                    #{String(idx + 1).padStart(2, '0')}
+                  </span>
+                  {isLogPlaceholder ? (
+                    <p className="text-gray-600 font-mono text-sm leading-6">{line}</p>
+                  ) : (
+                    <p className="text-emerald-600 font-mono text-sm leading-6">$ {line}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
 
         </div>
 
@@ -2540,67 +2561,6 @@ export default function SourcePage() {
         </div>
       )}
 
-
-
-      <div className="bg-neutral-900 text-gray-100 rounded-2xl border border-neutral-800 shadow-inner p-6 text-sm">
-
-        <div className="flex items-center justify-between mb-3">
-
-          <p className="font-semibold text-white">Event Logs</p>
-
-          <button
-
-            type="button"
-
-            onClick={() => setLogs([])}
-
-            className="text-neutral-400 hover:text-white"
-
-            aria-label="Refresh logs"
-
-          >
-
-            <RefreshCcw className="w-4 h-4" />
-
-          </button>
-
-        </div>
-
-        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-
-          {logLines.map((line, idx) => (
-
-            <div
-
-              key={`${line}-${idx}`}
-
-              className="flex items-start gap-3 bg-neutral-950/60 border border-neutral-800 rounded-lg px-3 py-2"
-
-            >
-
-              <span className="text-[11px] text-neutral-500 mt-1 font-semibold">
-
-                #{String(idx + 1).padStart(2, '0')}
-
-              </span>
-
-              {isLogPlaceholder ? (
-
-                <p className="text-gray-400 font-mono text-sm leading-6">{line}</p>
-
-              ) : (
-
-                <p className="text-emerald-200 font-mono text-sm leading-6">$ {line}</p>
-
-              )}
-
-            </div>
-
-          ))}
-
-        </div>
-
-      </div>
 
 
 

@@ -1229,6 +1229,8 @@ export default function DestinationPage() {
               Reset
             </button>
           </div>
+
+
         </div>
 
         {/* Progress checkpoints */}
@@ -1258,7 +1260,9 @@ export default function DestinationPage() {
           {/* Destination Connection Card */}
           <div
             ref={destinationFormRef}
-            className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm h-full flex flex-col"
+            className={`rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm h-full flex flex-col md:col-start-1 md:row-start-1 ${
+              connectionStatus === 'connected' ? 'hidden' : ''
+            }`}
           >
             <div className="mb-3">
               <span
@@ -1520,7 +1524,9 @@ export default function DestinationPage() {
           {/* Queue Managers Card */}
           <div
             ref={queueManagersRef}
-            className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm"
+            className={`rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm flex flex-col min-h-[520px] md:col-start-1 md:row-start-1 ${
+              connectionStatus === 'connected' ? '' : 'hidden'
+            }`}
           >
             {step2Done && (
               <div className="mb-3">
@@ -1540,18 +1546,13 @@ export default function DestinationPage() {
               </div>
             </div>
 
-            {connectionStatus !== 'connected' ? (
-              <div className="flex-1 flex items-center justify-center text-gray-600 font-semibold bg-white border border-dashed border-gray-300 rounded-xl gap-2 min-h-[240px]">
-                <ArrowLeft className="w-5 h-5 text-gray-500" />
-                Test destination connection to load queue managers.
-              </div>
-            ) : visibleQueues.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center text-gray-600 font-semibold bg-white border border-dashed border-gray-300 rounded-xl gap-2 min-h-[240px]">
-                <ArrowLeft className="w-5 h-5 text-gray-500" />
-                No queue managers available.
-              </div>
-            ) : (
-              <>
+            <div className="flex-1 flex flex-col gap-4">
+              {visibleQueues.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center text-gray-600 font-semibold bg-white border border-dashed border-gray-300 rounded-xl gap-2 min-h-[240px]">
+                  <ArrowLeft className="w-5 h-5 text-gray-500" />
+                  No queue managers available.
+                </div>
+              ) : (
                 <div className="space-y-2">
                   <div className="grid grid-cols-[1.6fr_1fr_0.7fr] text-xs font-semibold text-gray-500 px-3 py-2">
                     <span>Queue Manager</span>
@@ -1586,22 +1587,31 @@ export default function DestinationPage() {
                     ))}
                   </div>
                 </div>
+              )}
 
-                <div ref={migrateActionRef} className="mt-6">
-                  {step2Done && (
-                    <div className="mb-3">
-                      <span
-                        className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(3)}`}
-                      >
-                        Requirement 4: Migrate
-                      </span>
-                    </div>
-                  )}
+              <div ref={migrateActionRef} className="mt-auto">
+                {step2Done && (
+                  <div className="mb-3">
+                    <span
+                      className={`inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 ${getRequirementBadgeClass(3)}`}
+                    >
+                      Requirement 4: Migrate
+                    </span>
+                  </div>
+                )}
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={handleTestConnection}
+                    className="flex-1 rounded-lg border border-red-500 px-6 py-4 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                  >
+                    Disconnect
+                  </button>
                   <button
                     type="button"
                     disabled={!canMigrate}
                     onClick={handleMigrate}
-                    className={`inline-flex items-center justify-center gap-2 rounded-lg w-full py-4 text-sm font-semibold shadow-sm ${
+                    className={`inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-6 py-4 text-sm font-semibold shadow-sm ${
                       isMigrateStreaming
                         ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                         : 'bg-black hover:bg-gray-900 text-white'
@@ -1615,18 +1625,37 @@ export default function DestinationPage() {
                     {isMigrateStreaming ? 'Migrating...' : 'Migrate'}
                   </button>
                 </div>
-              </>
-            )}
-
-            <div className="mt-4">
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-neutral-900 text-gray-100 border border-neutral-800 shadow-inner p-6 text-sm md:col-start-2 md:row-start-1">
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-semibold text-white">Event Logs</p>
               <button
                 type="button"
-                onClick={() => router.push('/source')}
-                className="inline-flex items-center justify-center gap-2 rounded-lg w-full py-3 text-sm font-semibold shadow-sm bg-black hover:bg-gray-900 text-white"
+                onClick={() => setLogs([])}
+                className="text-neutral-400 hover:text-white"
+                aria-label="Refresh logs"
               >
-                <ArrowLeft className="w-4 h-4" />
-                Go to Source
+                <RefreshCcw className="w-4 h-4" />
               </button>
+            </div>
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {logLines.map((line, idx) => (
+                <div
+                  key={`${line}-${idx}`}
+                  className="flex items-start gap-3 bg-neutral-950/60 border border-neutral-800 rounded-lg px-3 py-2"
+                >
+                  <span className="text-[11px] text-neutral-500 mt-1 font-semibold">
+                    #{String(idx + 1).padStart(2, '0')}
+                  </span>
+                  {isLogPlaceholder ? (
+                    <p className="text-gray-400 font-mono text-sm leading-6">{line}</p>
+                  ) : (
+                    <p className="text-emerald-200 font-mono text-sm leading-6">$ {line}</p>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -1731,36 +1760,6 @@ export default function DestinationPage() {
         </div>
       )}
 
-      <div className="bg-neutral-900 text-gray-100 rounded-2xl border border-neutral-800 shadow-inner p-6 text-sm">
-        <div className="flex items-center justify-between mb-3">
-          <p className="font-semibold text-white">Event Logs</p>
-          <button
-            type="button"
-            onClick={() => setLogs([])}
-            className="text-neutral-400 hover:text-white"
-            aria-label="Refresh logs"
-          >
-            <RefreshCcw className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-          {logLines.map((line, idx) => (
-            <div
-              key={`${line}-${idx}`}
-              className="flex items-start gap-3 bg-neutral-950/60 border border-neutral-800 rounded-lg px-3 py-2"
-            >
-              <span className="text-[11px] text-neutral-500 mt-1 font-semibold">
-                #{String(idx + 1).padStart(2, '0')}
-              </span>
-              {isLogPlaceholder ? (
-                <p className="text-gray-400 font-mono text-sm leading-6">{line}</p>
-              ) : (
-                <p className="text-emerald-200 font-mono text-sm leading-6">$ {line}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
 
       {isGuideOpen && guideRect && guideStepData ? (
         <div className="fixed inset-0 z-[100] pointer-events-none">

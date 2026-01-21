@@ -1212,32 +1212,32 @@ export default function DestinationPage() {
               Connect to the destination MQ server and configure deployment settings before backup.
             </p>
           </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={startGuide}
+              className="h-6 w-6 rounded-full border border-gray-300 text-xs font-semibold text-gray-600 hover:text-gray-800 hover:border-gray-400"
+              aria-label="Open guided journey"
+            >
+              ?
+            </button>
+            <button
+              type="button"
+              onClick={resetProgress}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Reset
+            </button>
+          </div>
         </div>
 
         {/* Progress checkpoints */}
         <div className="mt-6 bg-white border border-gray-200 rounded-2xl shadow-sm px-6 py-5">
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm font-semibold text-gray-700">Progress</div>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={startGuide}
-                className="h-6 w-6 rounded-full border border-gray-300 text-xs font-semibold text-gray-600 hover:text-gray-800 hover:border-gray-400"
-                aria-label="Open guided journey"
-              >
-                ?
-              </button>
-              <button
-                type="button"
-                onClick={resetProgress}
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-              >
-                Reset
-              </button>
-            </div>
           </div>
-          <div className="relative">
-            <div className="absolute left-6 right-6 top-4 h-px bg-gray-200" />
+          <div className="relative mt-4">
+            <div className="absolute left-6 right-6 top-6 h-px bg-gray-200" />
             <div className="flex justify-between relative">
               {requirementSteps.map((step, idx) => {
                 const pillClass = getRequirementBadgeClass(idx);

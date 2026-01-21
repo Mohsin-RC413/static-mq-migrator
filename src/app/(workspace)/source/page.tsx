@@ -6,7 +6,7 @@ import Image from 'next/image';
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 
-import { Link2, ArrowLeft, CloudUpload, Download, Eye, EyeOff, Loader2, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, CloudUpload, Download, Link2, Loader2, RefreshCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import logo from '../../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 import {
@@ -1709,11 +1709,11 @@ export default function SourcePage() {
 
         {/* Progress checkpoints */}
 
-        <div className="mt-6 bg-white border border-gray-200 rounded-2xl shadow-sm px-6 py-5">
+        {/* <div className="mt-6 bg-white border border-gray-200 rounded-2xl shadow-sm px-6 py-5"> */}
 
           <div className="flex items-center justify-between mb-4">
 
-            <div className="text-sm font-semibold text-gray-700">Progress</div>
+            
 
             <div className="flex items-center gap-3">
 
@@ -1799,7 +1799,7 @@ export default function SourcePage() {
 
           </div>
 
-      </div>
+      {/* </div> */}
 
 
 

@@ -2365,31 +2365,31 @@ export default function SourcePage() {
 
          
 
-          <div className="rounded-2xl bg-gray-100 border border-gray-200 p-6 shadow-sm flex flex-col min-h-[520px] text-sm">
+          <div className="rounded-2xl bg-neutral-900 text-gray-100 border border-neutral-800 shadow-inner p-6 text-sm">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-lg font-semibold text-gray-800">Event Logs</p>
+              <p className="font-semibold text-white">Event Logs</p>
               <button
                 type="button"
                 onClick={() => setLogs([])}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-neutral-400 hover:text-white"
                 aria-label="Refresh logs"
               >
                 <RefreshCcw className="w-4 h-4" />
               </button>
             </div>
-            <div className="space-y-2 overflow-y-auto pr-1 flex-1">
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
               {logLines.map((line, idx) => (
                 <div
                   key={`${line}-${idx}`}
-                  className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-3 py-2"
+                  className="flex items-start gap-3 bg-neutral-950/60 border border-neutral-800 rounded-lg px-3 py-2"
                 >
-                  <span className="text-[11px] text-gray-500 mt-1 font-semibold">
+                  <span className="text-[11px] text-neutral-500 mt-1 font-semibold">
                     #{String(idx + 1).padStart(2, '0')}
                   </span>
                   {isLogPlaceholder ? (
-                    <p className="text-gray-600 font-mono text-sm leading-6">{line}</p>
+                    <p className="text-gray-400 font-mono text-sm leading-6">{line}</p>
                   ) : (
-                    <p className="text-emerald-600 font-mono text-sm leading-6">$ {line}</p>
+                    <p className="text-emerald-200 font-mono text-sm leading-6">$ {line}</p>
                   )}
                 </div>
               ))}

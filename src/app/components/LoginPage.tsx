@@ -114,11 +114,15 @@ export function LoginPage() {
       <div className="w-full lg:w-1/2 flex items-start justify-center px-8 py-12 lg:px-16 pt-24 lg:pt-32 relative">
         {/* Login Form Card */}
         <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/70">
-          <div className="bg-[#0b3b5a] px-8 py-5">
+          <div
+            className="bg-[#0b3b5a] px-8 py-5"
+            style={{
+              clipPath:
+                'polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px))',
+            }}
+          >
             <div className="flex items-center justify-center gap-4">
-              <div className="h-8 w-[104px] overflow-hidden rounded-md bg-white shadow-sm">
-                <Image src={logo} alt="Royal Cyber" className="h-full w-full object-cover" priority />
-              </div>
+              <Image src={logo} alt="Royal Cyber" className="h-12 w-auto" priority />
               <div className="h-6 w-px bg-white/40" />
               <span className="text-sm font-semibold tracking-[0.28em] text-white">
                 MIGRATION

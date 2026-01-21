@@ -2,13 +2,11 @@
 
 
 
-import Image from 'next/image';
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 
 import { ArrowLeft, CloudUpload, Download, Link2, Loader2, RefreshCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import logo from '../../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 import {
   Select,
   SelectContent,
@@ -1681,17 +1679,10 @@ export default function SourcePage() {
 
       >
 
-        <div className="mb-4">
-
-          <Image src={logo} alt="Royal Cyber" className="h-16 w-auto" priority />
-
-        </div>
-
             <div className="flex items-start justify-between gap-4">
 
               <div>
 
-                <p className="text-xs uppercase tracking-[0.25em] text-gray-500 mb-2">Migration</p>
 
                 <h1 className="text-3xl font-bold text-gray-800">Source</h1>
 

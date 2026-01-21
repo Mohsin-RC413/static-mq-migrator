@@ -1,7 +1,6 @@
 ﻿'use client';
 
 import { ArrowLeft, CloudUpload, Download, Link2, Loader2, RefreshCcw } from 'lucide-react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   useEffect,
@@ -11,7 +10,6 @@ import {
   type CSSProperties,
   type RefObject,
 } from 'react';
-import logo from '../../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 import {
   Select,
   SelectContent,
@@ -1207,12 +1205,8 @@ export default function DestinationPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div className="bg-gray-50 border-0 shadow-none p-0">
-        <div className="mb-4">
-          <Image src={logo} alt="Royal Cyber" className="h-16 w-auto" priority />
-        </div>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-gray-500 mb-2">Migration</p>
             <h1 className="text-3xl font-bold text-gray-800">Destination</h1>
             <p className="text-gray-600 mt-3">
               Connect to the destination MQ server and configure deployment settings before backup.

@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'motion/react';
 import {
   ArrowRight,
   CheckCircle2,
@@ -10,9 +9,11 @@ import {
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
+import { motion } from 'motion/react';
 
 const features = [
   { label: 'Zero Downtime', icon: ShieldCheck },
+
   { label: 'Auto Validation', icon: Sparkles },
   { label: 'Rollback Ready', icon: RotateCcw },
 ];
@@ -29,7 +30,7 @@ export function MigrationAnimation() {
           className="text-center mb-16"
         >
           <h2 className="text-4xl font-bold text-gray-100 mb-4">
-            Seamless Queue Migration
+            Seamless IBM MQ Migration
           </h2>
           <p className="text-gray-300 text-lg">
             Migrate your message queues with zero downtime
@@ -47,7 +48,7 @@ export function MigrationAnimation() {
           >
             <div className="bg-neutral-700/80 rounded-2xl p-8 shadow-2xl border border-neutral-500/60 backdrop-blur">
               <Server className="w-16 h-16 text-gray-200 mb-4" />
-              <h3 className="font-bold text-gray-100 mb-2">Source Queue</h3>
+              <h3 className="font-bold text-gray-100 mb-2">Source</h3>
               <p className="text-sm text-gray-400">Legacy Environment</p>
               
               {/* Messages */}
@@ -133,7 +134,7 @@ export function MigrationAnimation() {
           >
             <div className="bg-neutral-700/80 rounded-2xl p-8 shadow-2xl border border-neutral-500/60 backdrop-blur">
               <Database className="w-16 h-16 text-gray-200 mb-4" />
-              <h3 className="font-bold text-gray-100 mb-2">Target Queue</h3>
+              <h3 className="font-bold text-gray-100 mb-2">Target</h3>
               <p className="text-sm text-gray-400">New Environment</p>
               
               {/* Success Indicator */}

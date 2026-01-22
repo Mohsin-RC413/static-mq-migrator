@@ -1,14 +1,14 @@
 'use client';
 
-import Image from 'next/image';
-import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight } from 'lucide-react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Input } from './ui/input';
-import { Button } from './ui/button';
-import { Checkbox } from './ui/checkbox';
+import { useEffect, useState, type FormEvent } from 'react';
 import logo from '../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 import { MigrationAnimation } from './MigrationAnimation';
+import { Button } from './ui/button';
+import { Checkbox } from './ui/checkbox';
+import { Input } from './ui/input';
 
 export function LoginPage() {
   const [rememberDevice, setRememberDevice] = useState(false);
@@ -147,7 +147,7 @@ export function LoginPage() {
             {/* Header */}
             <div className="mb-8 space-y-3">
               <h1 className="text-3xl font-semibold text-slate-900 leading-tight">
-                Welcome Back
+                Royal Cyber Migration Workspace
               </h1>
               <p className="text-base text-slate-600 leading-relaxed">
                 Connect, back up, and migrate IBM MQ across environments with guided steps.

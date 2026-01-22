@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import logo from '../../assets/c1e60e7780162b6f7a1ab33de09eea29e15bc73b.png';
 import { MigrationAnimation } from './MigrationAnimation';
+import { apiUrl } from '../lib/config';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
@@ -56,7 +57,7 @@ export function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('http://192.168.18.35:8080/auth/login', {
+      const response = await fetch(apiUrl('/auth/login'), {
         method: 'POST',
         headers: {
           Accept: 'application/json',

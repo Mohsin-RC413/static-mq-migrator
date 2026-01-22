@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObjec
 
 import { ArrowLeft, CloudUpload, Download, Link2, Loader2, RefreshCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { apiUrl, wsUrl } from '../../lib/config';
 import {
   Select,
   SelectContent,
@@ -650,7 +651,7 @@ export default function SourcePage() {
   const openBackupSocket = () =>
     new Promise<WebSocket>((resolve, reject) => {
       closeBackupSocket();
-      const socket = new WebSocket('ws://192.168.18.35:8080/logs');
+      const socket = new WebSocket(wsUrl('/logs'));
       backupSocketRef.current = socket;
       let settled = false;
       let opened = false;
@@ -794,7 +795,7 @@ export default function SourcePage() {
 
           typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
 
-        const response = await fetch('http://192.168.18.35:8080/v1/get-all-running-mq', {
+        const response = await fetch(apiUrl('/v1/get-all-running-mq'), {
 
           method: 'GET',
 
@@ -1047,7 +1048,7 @@ export default function SourcePage() {
 
         typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
 
-      const response = await fetch('http://192.168.18.35:8080/v1/backup', {
+      const response = await fetch(apiUrl('/v1/backup'), {
 
         method: 'POST',
 
@@ -1187,7 +1188,7 @@ export default function SourcePage() {
         setReportLoading(false);
         return;
       }
-      const response = await fetch('http://192.168.18.35:8080/v1/get-mq-details', {
+      const response = await fetch(apiUrl('/v1/get-mq-details'), {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -1544,7 +1545,7 @@ export default function SourcePage() {
 
       const response = await fetch(
 
-        'http://192.168.18.35:8080/v1/store-server-cred?calledFrom=source',
+        `${apiUrl('/v1/store-server-cred')}?calledFrom=source`,
 
         {
 

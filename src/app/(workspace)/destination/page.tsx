@@ -10,6 +10,7 @@ import {
   type CSSProperties,
   type RefObject,
 } from 'react';
+import { apiUrl, wsUrl } from '../../lib/config';
 import {
   Select,
   SelectContent,
@@ -405,7 +406,7 @@ export default function DestinationPage() {
   const openMigrateSocket = () =>
     new Promise<WebSocket>((resolve, reject) => {
       closeMigrateSocket();
-      const socket = new WebSocket('ws://192.168.18.35:8080/logs');
+      const socket = new WebSocket(wsUrl('/logs'));
       migrateSocketRef.current = socket;
       let settled = false;
       let opened = false;
@@ -711,8 +712,8 @@ export default function DestinationPage() {
       }
       const response = await fetch(
         isCloud
-          ? 'http://192.168.18.35:8080/azure/login'
-          : 'http://192.168.18.35:8080/v1/store-server-cred?calledFrom=destination',
+          ? apiUrl('/azure/login')
+          : `${apiUrl('/v1/store-server-cred')}?calledFrom=destination`,
         {
           method: 'POST',
           headers: {
@@ -859,7 +860,7 @@ export default function DestinationPage() {
       if (!isCloud) {
         const migratePayload = { mqNames: destinationSelectedQueues };
         console.log('Migrate request:', migratePayload);
-        const migrateResponse = await fetch('http://192.168.18.35:8080/v1/migrate', {
+        const migrateResponse = await fetch(apiUrl('/v1/migrate'), {
           method: 'POST',
           headers,
           body: JSON.stringify(migratePayload),
@@ -912,7 +913,7 @@ export default function DestinationPage() {
         subscriptionId: form.subscriptionId.trim(),
       };
       console.log('Azure login request:', azureLoginPayload);
-      const azureLoginResponse = await fetch('http://192.168.18.35:8080/azure/login', {
+      const azureLoginResponse = await fetch(apiUrl('/azure/login'), {
         method: 'POST',
         headers,
         body: JSON.stringify(azureLoginPayload),
@@ -945,7 +946,7 @@ export default function DestinationPage() {
         nodeCount,
       };
       console.log('AKS create request:', aksCreatePayload);
-      const aksCreateResponse = await fetch('http://192.168.18.35:8080/aks/create', {
+      const aksCreateResponse = await fetch(apiUrl('/aks/create'), {
         method: 'POST',
         headers,
         body: JSON.stringify(aksCreatePayload),
@@ -959,7 +960,7 @@ export default function DestinationPage() {
       };
       console.log('AKS get-credentials request:', aksCredentialsPayload);
       const aksCredentialsResponse = await fetch(
-        'http://192.168.18.35:8080/aks/get-credentials',
+        apiUrl('/aks/get-credentials'),
         {
           method: 'POST',
           headers,
@@ -989,7 +990,7 @@ export default function DestinationPage() {
         kubeconfigPath,
       };
       console.log('MQ install request:', mqInstallPayload);
-      const mqInstallResponse = await fetch('http://192.168.18.35:8080/mq/install', {
+      const mqInstallResponse = await fetch(apiUrl('/mq/install'), {
         method: 'POST',
         headers: {
           ...headers,
@@ -1007,7 +1008,7 @@ export default function DestinationPage() {
         mqscFilePath: `/MQMigratorBackup/backupfromsource/${selectedQueue}.mqsc`,
       };
       console.log('MQ load-mqsc request:', mqscPayload);
-      const mqscResponse = await fetch('http://192.168.18.35:8080/mq/load-mqsc', {
+      const mqscResponse = await fetch(apiUrl('/mq/load-mqsc'), {
         method: 'POST',
         headers: {
           ...headers,
@@ -1081,9 +1082,7 @@ export default function DestinationPage() {
         return;
       }
       const response = await fetch(
-        `http://192.168.18.35:8080/v1/destination/summary?accessToken=${encodeURIComponent(
-          accessToken,
-        )}`,
+        `${apiUrl('/v1/destination/summary')}?accessToken=${encodeURIComponent(accessToken)}`,
         {
         method: 'POST',
         headers: {
@@ -1246,7 +1245,7 @@ export default function DestinationPage() {
           return;
         }
         const response = await fetch(
-          'http://192.168.18.35:8080/v1/destination/mq/list',
+          apiUrl('/v1/destination/mq/list'),
           {
             method: 'GET',
             headers: {

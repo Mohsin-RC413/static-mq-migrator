@@ -86,6 +86,7 @@ export default function SourcePage() {
   const [selectedQueues, setSelectedQueues] = useState<string[]>([]);
 
   const [logs, setLogs] = useState<string[]>([]);
+  const backupSocketRef = useRef<WebSocket | null>(null);
 
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
@@ -627,51 +628,70 @@ export default function SourcePage() {
 
   }, [toastMessage, toastDurationMs, toastFadeMs]);
 
-
-
   useEffect(() => {
-
-    if (!isBackupStreaming) return;
-
-    const socket = new WebSocket('ws://192.168.18.35:8080/logs');
-
-
-
-    socket.onopen = () => {
-
-      console.log('WebSocket connection established');
-
-    };
-
-    socket.onmessage = (event) => {
-
-      console.log('Message received:', event.data);
-
-      setLogs((prevLogs) => [...prevLogs, event.data]);
-
-    };
-
-    socket.onclose = () => {
-
-      console.log('WebSocket connection closed');
-
-    };
-
-    socket.onerror = (error) => {
-
-      console.error('WebSocket error:', error);
-
-    };
-
-
-
     return () => {
-
-      socket.close();
-
+      if (backupSocketRef.current) {
+        backupSocketRef.current.close();
+        backupSocketRef.current = null;
+      }
     };
+  }, []);
 
-  }, [isBackupStreaming]);
+  const closeBackupSocket = () => {
+    if (backupSocketRef.current) {
+      backupSocketRef.current.close();
+      backupSocketRef.current = null;
+    }
+  };
+
+  const backupSocketTimeoutMs = 5 * 60 * 1000;
+
+  const openBackupSocket = () =>
+    new Promise<WebSocket>((resolve, reject) => {
+      closeBackupSocket();
+      const socket = new WebSocket('ws://192.168.18.35:8080/logs');
+      backupSocketRef.current = socket;
+      let settled = false;
+      let opened = false;
+      const timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        socket.close();
+        reject(new Error('WebSocket connection timeout'));
+      }, backupSocketTimeoutMs);
+
+      socket.onopen = () => {
+        opened = true;
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        console.log('WebSocket connection established');
+        resolve(socket);
+      };
+
+      socket.onmessage = (event) => {
+        console.log('Message received:', event.data);
+        setLogs((prevLogs) => [...prevLogs, event.data]);
+      };
+
+      socket.onclose = () => {
+        console.log('WebSocket connection closed');
+        if (!opened && !settled) {
+          settled = true;
+          clearTimeout(timeoutId);
+          reject(new Error('WebSocket closed before opening'));
+        }
+      };
+
+      socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeoutId);
+          reject(error instanceof Error ? error : new Error('WebSocket error'));
+        }
+      };
+    });
 
 
 
@@ -987,6 +1007,17 @@ export default function SourcePage() {
 
     setIsBackupStreaming(true);
 
+    try {
+      await openBackupSocket();
+    } catch (error) {
+      console.error('WebSocket connection error:', error);
+      setToastMessage('Unable to connect to log stream.');
+      setToastTone('error');
+      setIsBackupStreaming(false);
+      closeBackupSocket();
+      return;
+    }
+
     const transferType =
 
       form.transferMode === 'shared-sftp'
@@ -1134,6 +1165,7 @@ export default function SourcePage() {
     } finally {
 
       setIsBackupStreaming(false);
+      closeBackupSocket();
 
     }
 

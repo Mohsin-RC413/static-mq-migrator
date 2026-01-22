@@ -84,6 +84,7 @@ export default function DestinationPage() {
   const [destinationQueues, setDestinationQueues] = useState<QueueManager[]>([]);
   const [destinationSelectedQueues, setDestinationSelectedQueues] = useState<string[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
+  const migrateSocketRef = useRef<WebSocket | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState('');
@@ -383,27 +384,69 @@ export default function DestinationPage() {
   }, [toastMessage, toastDurationMs, toastFadeMs]);
 
   useEffect(() => {
-    if (!isMigrateStreaming) return;
-    const socket = new WebSocket('ws://192.168.18.35:8080/logs');
-
-    socket.onopen = () => {
-      console.log('WebSocket connection established');
-    };
-    socket.onmessage = (event) => {
-      console.log('Message received:', event.data);
-      setLogs((prevLogs) => [...prevLogs, event.data]);
-    };
-    socket.onclose = () => {
-      console.log('WebSocket connection closed');
-    };
-    socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
     return () => {
-      socket.close();
+      if (migrateSocketRef.current) {
+        migrateSocketRef.current.close();
+        migrateSocketRef.current = null;
+      }
     };
-  }, [isMigrateStreaming]);
+  }, []);
+
+  const closeMigrateSocket = () => {
+    if (migrateSocketRef.current) {
+      migrateSocketRef.current.close();
+      migrateSocketRef.current = null;
+    }
+  };
+
+  const migrateSocketTimeoutMs = 5 * 60 * 1000;
+
+  const openMigrateSocket = () =>
+    new Promise<WebSocket>((resolve, reject) => {
+      closeMigrateSocket();
+      const socket = new WebSocket('ws://192.168.18.35:8080/logs');
+      migrateSocketRef.current = socket;
+      let settled = false;
+      let opened = false;
+      const timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        socket.close();
+        reject(new Error('WebSocket connection timeout'));
+      }, migrateSocketTimeoutMs);
+
+      socket.onopen = () => {
+        opened = true;
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        console.log('WebSocket connection established');
+        resolve(socket);
+      };
+
+      socket.onmessage = (event) => {
+        console.log('Message received:', event.data);
+        setLogs((prevLogs) => [...prevLogs, event.data]);
+      };
+
+      socket.onclose = () => {
+        console.log('WebSocket connection closed');
+        if (!opened && !settled) {
+          settled = true;
+          clearTimeout(timeoutId);
+          reject(new Error('WebSocket closed before opening'));
+        }
+      };
+
+      socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeoutId);
+          reject(error instanceof Error ? error : new Error('WebSocket error'));
+        }
+      };
+    });
 
   const visibleQueues = useMemo(() => destinationQueues, [destinationQueues]);
 
@@ -776,6 +819,17 @@ export default function DestinationPage() {
     }
     setIsMigrateStreaming(true);
 
+    try {
+      await openMigrateSocket();
+    } catch (error) {
+      console.error('WebSocket connection error:', error);
+      setToastMessage('Unable to connect to log stream.');
+      setToastTone('error');
+      setIsMigrateStreaming(false);
+      closeMigrateSocket();
+      return;
+    }
+
     const accessToken =
       typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     const headers = {
@@ -1006,6 +1060,7 @@ export default function DestinationPage() {
       }
     } finally {
       setIsMigrateStreaming(false);
+      closeMigrateSocket();
     }
   };
 

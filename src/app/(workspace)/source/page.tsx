@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
+import { ScrollArea } from '../../components/ui/scroll-area';
 
 
 type QueueManager = {
@@ -2383,7 +2384,7 @@ export default function SourcePage() {
 
          
 
-          <div className="rounded-2xl bg-neutral-900 text-gray-100 border border-neutral-800 shadow-inner p-6 text-sm">
+          <div className="rounded-2xl bg-neutral-900 text-gray-100 border border-neutral-800 shadow-inner p-6 text-sm flex flex-col h-[520px] min-h-0">
             <div className="flex items-center justify-between mb-3">
               <p className="font-semibold text-white">Event Logs</p>
               <button
@@ -2395,19 +2396,21 @@ export default function SourcePage() {
                 <RefreshCcw className="w-4 h-4" />
               </button>
             </div>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-              {logLines.map((line, idx) => (
-                <div
-                  key={`${line}-${idx}`}
-                  className="flex items-start gap-3 bg-neutral-950/60 border border-neutral-800 rounded-lg px-3 py-2"
-                >
-                  <span className="text-[11px] text-neutral-500 mt-1 font-semibold">
-                    #{String(idx + 1).padStart(2, '0')}
-                  </span>
-                  <p className="text-emerald-200 font-mono text-sm leading-6">{line}</p>
-                </div>
-              ))}
-            </div>
+            <ScrollArea className="flex-1 min-h-0 pr-1" type="always">
+              <div className="space-y-2">
+                {logLines.map((line, idx) => (
+                  <div
+                    key={`${line}-${idx}`}
+                    className="flex items-start gap-3 bg-neutral-950/60 border border-neutral-800 rounded-lg px-3 py-2"
+                  >
+                    <span className="text-[11px] text-neutral-500 mt-1 font-semibold">
+                      #{String(idx + 1).padStart(2, '0')}
+                    </span>
+                    <p className="text-emerald-200 font-mono text-sm leading-6">{line}</p>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
           </div>
 
         </div>

@@ -1185,14 +1185,14 @@ export default function SourcePage() {
 
       setReportData(data as MqReportResponse);
       setReportExpanded({
-        queue: true,
-        subscription: true,
-        channel: true,
-        topic: true,
-        service: true,
-        channelAuth: true,
-        listener: true,
-        nameList: true,
+        queue: false,
+        subscription: false,
+        channel: false,
+        topic: false,
+        service: false,
+        channelAuth: false,
+        listener: false,
+        nameList: false,
       });
     } catch (error) {
       console.error('MQ report fetch error:', error);

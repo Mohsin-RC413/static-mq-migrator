@@ -33,7 +33,7 @@ export function MigrationAnimation() {
             Seamless IBM MQ Migration
           </h2>
           <p className="text-gray-300 text-lg">
-            Migrate your message queues with zero downtime
+            Migrate your IBM MQ with zero downtime
           </p>
         </motion.div>
 

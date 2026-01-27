@@ -95,6 +95,7 @@ export default function DestinationPage() {
   const [reportExpanded, setReportExpanded] = useState<Record<string, boolean>>({});
   const [testDone, setTestDone] = useState(false);
   const [migrationDone, setMigrationDone] = useState(false);
+  const [migrationAttempted, setMigrationAttempted] = useState(false);
   const router = useRouter();
   const destinationFormKey = 'destinationForm';
   const destinationDropdownKey = 'destinationDropdowns';
@@ -462,7 +463,7 @@ export default function DestinationPage() {
   const hasSelection = destinationSelectedQueues.length > 0;
   const isReadyToMigrate = connectionStatus === 'connected' && hasSelection;
   const canMigrate = isReadyToMigrate && !isMigrateStreaming;
-  const canViewReport = migrationDone;
+  const canViewReport = migrationAttempted;
   const step1Done = Boolean(destinationFieldsFilled);
   const step2Done = step1Done && (connectionStatus === 'connected' || testDone);
   const step3Done = destinationSelectedQueues.length > 0;
@@ -658,6 +659,8 @@ export default function DestinationPage() {
     if (connectionStatus === 'connected') {
       setConnectionStatus('untested');
       setTestDone(false);
+      setMigrationDone(false);
+      setMigrationAttempted(false);
       setDestinationSelectedQueues([]);
       setDestinationQueues([]);
       if (typeof window !== 'undefined') {
@@ -813,9 +816,9 @@ export default function DestinationPage() {
       setToastTone('error');
       return;
     }
-    setToastMessage('');
-    setToastTone('');
+    const reportQueue = destinationSelectedQueues[0];
     setMigrationDone(false);
+    setMigrationAttempted(false);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('destinationMigrationDone');
     }
@@ -825,12 +828,11 @@ export default function DestinationPage() {
       await openMigrateSocket();
     } catch (error) {
       console.error('WebSocket connection error:', error);
-      setToastMessage('Unable to connect to log stream.');
-      setToastTone('error');
       setIsMigrateStreaming(false);
       closeMigrateSocket();
       return;
     }
+    setMigrationAttempted(true);
 
     const accessToken =
       typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
@@ -889,37 +891,31 @@ export default function DestinationPage() {
             : 'Migration failed.';
 
         if (isSuccess) {
-          setToastMessage(message);
-          setToastTone('success');
           setMigrationDone(true);
           if (typeof window !== 'undefined') {
             localStorage.setItem('destinationMigrationDone', 'true');
           }
         } else {
-          setToastMessage(message);
-          setToastTone('error');
           setMigrationDone(false);
           if (typeof window !== 'undefined') {
             localStorage.removeItem('destinationMigrationDone');
           }
         }
-        return;
-      }
-
-      const azureLoginPayload = {
-        clientId: form.clientId.trim(),
-        clientSecret: form.clientSecret,
-        tenantId: form.tenantId.trim(),
-        subscriptionId: form.subscriptionId.trim(),
-      };
-      console.log('Azure login request:', azureLoginPayload);
-      const azureLoginResponse = await fetch(apiUrl('/azure/login'), {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(azureLoginPayload),
-      });
-      const azureLoginData = await parseResponse(azureLoginResponse);
-      console.log('Azure login response:', azureLoginData);
+      } else {
+        const azureLoginPayload = {
+          clientId: form.clientId.trim(),
+          clientSecret: form.clientSecret,
+          tenantId: form.tenantId.trim(),
+          subscriptionId: form.subscriptionId.trim(),
+        };
+        console.log('Azure login request:', azureLoginPayload);
+        const azureLoginResponse = await fetch(apiUrl('/azure/login'), {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(azureLoginPayload),
+        });
+        const azureLoginData = await parseResponse(azureLoginResponse);
+        console.log('Azure login response:', azureLoginData);
 
       const normalizedDeploymentMode = deploymentMode.trim();
       const nodeCount =
@@ -969,8 +965,6 @@ export default function DestinationPage() {
           : '';
 
       if (!kubeconfigPath) {
-        setToastMessage('kubeconfigPath missing in credentials response.');
-        setToastTone('error');
         return;
       }
 
@@ -1024,31 +1018,26 @@ export default function DestinationPage() {
         mqscCode === '00' ||
         mqscMsg.trim().toLowerCase() === 'success' ||
         mqscMessageText.trim().toLowerCase().includes('migration completed successfully');
-      const mqscMessage = mqscRecord?.message
-        ? String(mqscRecord.message)
-        : mqscSuccess
-          ? 'Migration completed successfully.'
-          : 'Migration failed.';
+        const mqscMessage = mqscRecord?.message
+          ? String(mqscRecord.message)
+          : mqscSuccess
+            ? 'Migration completed successfully.'
+            : 'Migration failed.';
 
-      if (mqscSuccess) {
-        setToastMessage(mqscMessage);
-        setToastTone('success');
-        setMigrationDone(true);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('destinationMigrationDone', 'true');
-        }
-      } else {
-        setToastMessage(mqscMessage);
-        setToastTone('error');
-        setMigrationDone(false);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('destinationMigrationDone');
+        if (mqscSuccess) {
+          setMigrationDone(true);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('destinationMigrationDone', 'true');
+          }
+        } else {
+          setMigrationDone(false);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('destinationMigrationDone');
+          }
         }
       }
     } catch (error) {
       console.error('Migration error:', error);
-      setToastMessage('Migration failed.');
-      setToastTone('error');
       setMigrationDone(false);
       if (typeof window !== 'undefined') {
         localStorage.removeItem('destinationMigrationDone');
@@ -1056,6 +1045,9 @@ export default function DestinationPage() {
     } finally {
       setIsMigrateStreaming(false);
       closeMigrateSocket();
+      if (reportQueue) {
+        handleViewReport(reportQueue);
+      }
     }
   };
 

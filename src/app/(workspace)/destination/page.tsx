@@ -401,7 +401,7 @@ export default function DestinationPage() {
     }
   };
 
-  const migrateSocketTimeoutMs = 5 * 60 * 1000;
+  const migrateSocketTimeoutMs = 35 * 60 * 1000;
 
   const openMigrateSocket = () =>
     new Promise<WebSocket>((resolve, reject) => {
@@ -930,14 +930,7 @@ export default function DestinationPage() {
             : normalizedDeploymentMode === 'RDQM'
               ? 3
               : 3;
-      const queueManagerName =
-        normalizedDeploymentMode === 'Standalone'
-          ? 'standalone'
-          : normalizedDeploymentMode === 'Multiinstance'
-            ? 'multiinstance'
-            : normalizedDeploymentMode === 'RDQM'
-              ? 'RDQM'
-              : 'multiinstance';
+      const queueManagerName = 'rcdemoapphelm';
 
       const aksCreatePayload = {
         resourceGroup: form.resourceGroup.trim(),
@@ -1005,7 +998,7 @@ export default function DestinationPage() {
         kubeconfigPath,
         namespace: form.namespace.trim(),
         queueManagerName,
-        mqscFilePath: `/MQMigratorBackup/backupfromsource/${selectedQueue}.mqsc`,
+        mqscFilePath: `C:/Work/MQMigratorBackup/backupfromsource/${selectedQueue}.mqsc`,
       };
       console.log('MQ load-mqsc request:', mqscPayload);
       const mqscResponse = await fetch(apiUrl('/mq/load-mqsc'), {
@@ -1082,7 +1075,7 @@ export default function DestinationPage() {
         return;
       }
       const response = await fetch(
-        `${apiUrl('/v1/destination/summary')}?accessToken=${encodeURIComponent(accessToken)}`,
+        `${apiUrl('/v1/destination/summary?mode=cloud')}?accessToken=${encodeURIComponent(accessToken)}`,
         {
         method: 'POST',
         headers: {
@@ -1245,7 +1238,7 @@ export default function DestinationPage() {
           return;
         }
         const response = await fetch(
-          apiUrl('/v1/destination/mq/list'),
+          apiUrl('/v1/destination/mq/list?backupFrom=local'),
           {
             method: 'GET',
             headers: {

@@ -1045,9 +1045,6 @@ export default function DestinationPage() {
     } finally {
       setIsMigrateStreaming(false);
       closeMigrateSocket();
-      if (reportQueue) {
-        handleViewReport(reportQueue);
-      }
     }
   };
 
@@ -1730,105 +1727,6 @@ export default function DestinationPage() {
           </div>
         </div>
       </div>
-
-      {showReportModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4 py-6">
-          <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full p-6 space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold text-gray-500">MQ Report</p>
-                <p className="text-lg font-semibold text-gray-800">
-                  {reportQueueName || 'Queue Manager'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleDownloadReport}
-                  disabled={!reportData || reportLoading}
-                  aria-label="Download MQ report"
-                  className={`p-2 rounded-lg border text-sm font-semibold ${
-                    reportData && !reportLoading
-                      ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                      : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  <Download className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCloseReportModal}
-                  className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-
-            {reportLoading ? (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Loading MQ report...
-              </div>
-            ) : reportError ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {reportError}
-              </div>
-            ) : reportData ? (
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 max-h-[60vh] overflow-y-auto space-y-3">
-                {reportSections.map((section) => {
-                  const sectionData = section.data;
-                  const items = sectionData?.listOfObjects ?? [];
-                  const isOpen = reportExpanded[section.key] ?? true;
-                  return (
-                    <div
-                      key={section.key}
-                      className="rounded-lg border border-gray-200 bg-white p-3"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleReportSection(section.key)}
-                        className="w-full flex items-center justify-between text-left"
-                        aria-expanded={isOpen}
-                      >
-                        <span className="text-sm font-semibold text-gray-800">
-                          {section.label} ({getReportCount(sectionData)})
-                        </span>
-                        <span className="text-xs font-mono text-gray-500">
-                          {isOpen ? '[-]' : '[+]'}
-                        </span>
-                      </button>
-                      {isOpen && (
-                        <ul className="mt-2 space-y-1 border-l border-gray-200 pl-4">
-                          {items.length ? (
-                            items.map((item) => (
-                              <li
-                                key={`${section.key}-${item.name}`}
-                                className="flex items-start gap-2 text-xs text-gray-700"
-                              >
-                                <span className="font-mono">{item.name}</span>
-                                {item.type ? (
-                                  <span className="text-gray-500">[{item.type}]</span>
-                                ) : null}
-                              </li>
-                            ))
-                          ) : (
-                            <li className="text-xs text-gray-500">No entries.</li>
-                          )}
-                        </ul>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                No report data loaded.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
 
       {isGuideOpen && guideRect && guideStepData ? (

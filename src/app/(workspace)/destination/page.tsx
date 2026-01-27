@@ -463,11 +463,11 @@ export default function DestinationPage() {
   const hasSelection = destinationSelectedQueues.length > 0;
   const isReadyToMigrate = connectionStatus === 'connected' && hasSelection;
   const canMigrate = isReadyToMigrate && !isMigrateStreaming;
-  const canViewReport = migrationAttempted;
+  const canViewReport = false;
   const step1Done = Boolean(destinationFieldsFilled);
   const step2Done = step1Done && (connectionStatus === 'connected' || testDone);
   const step3Done = destinationSelectedQueues.length > 0;
-  const step4Done = step3Done && migrationDone;
+  const step4Done = step3Done && migrationAttempted && !isMigrateStreaming;
   const logLines = logs;
   const requirementSteps = [
     { label: 'Provide Destination connection credentials', done: step1Done },

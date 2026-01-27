@@ -1637,15 +1637,14 @@ export default function DestinationPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-[1.6fr_0.7fr] text-xs font-semibold text-gray-500 px-3 py-2">
+                  <div className="grid grid-cols-[1fr] text-xs font-semibold text-gray-500 px-3 py-2">
                     <span>Queue Manager</span>
-                    <span className="text-right">Report</span>
                   </div>
                   <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                     {visibleQueues.map((queue) => (
                       <div
                         key={queue.name}
-                        className="grid grid-cols-[1.6fr_0.7fr] items-center bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 hover:border-gray-300"
+                        className="grid grid-cols-[1fr] items-center bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 hover:border-gray-300"
                       >
                         <div className="flex items-center gap-2">
                           <input
@@ -1655,24 +1654,6 @@ export default function DestinationPage() {
                             className="h-4 w-4 accent-gray-500"
                           />
                           <span>{queue.name}</span>
-                        </div>
-                        <div
-                          className="text-right"
-                          title={!canViewReport ? 'Migrate to view summary of migration' : undefined}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleViewReport(queue.name)}
-                            aria-label={`View report for ${queue.name}`}
-                            disabled={!canViewReport}
-                            className={`text-sm font-semibold text-right ${
-                              canViewReport
-                                ? 'text-gray-600 hover:text-gray-700'
-                                : 'text-gray-400 cursor-not-allowed'
-                            }`}
-                          >
-                            View
-                          </button>
                         </div>
                       </div>
                     ))}

@@ -87,6 +87,7 @@ export default function DestinationPage() {
   const [destinationSelectedQueues, setDestinationSelectedQueues] = useState<string[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
   const migrateSocketRef = useRef<WebSocket | null>(null);
+  const [destinationQueuePaths, setDestinationQueuePaths] = useState<Record<string, string>>({});
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState('');
@@ -101,6 +102,7 @@ export default function DestinationPage() {
   const destinationDropdownKey = 'destinationDropdowns';
   const destinationQueuesKey = 'destinationSelectedQueues';
   const destinationConnectedKey = 'destinationConnected';
+  const destinationQueuePathsKey = 'destinationQueuePaths';
   const [form, setForm] = useState({
     server: '',
     username: '',
@@ -354,6 +356,17 @@ export default function DestinationPage() {
           const parsedQueues = JSON.parse(storedQueues);
           if (Array.isArray(parsedQueues)) {
             setDestinationSelectedQueues(parsedQueues);
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
+      const storedPaths = localStorage.getItem(destinationQueuePathsKey);
+      if (storedPaths) {
+        try {
+          const parsedPaths = JSON.parse(storedPaths);
+          if (parsedPaths && typeof parsedPaths === 'object') {
+            setDestinationQueuePaths(parsedPaths as Record<string, string>);
           }
         } catch {
           // ignore parse errors
@@ -649,6 +662,16 @@ export default function DestinationPage() {
           localStorage.setItem(destinationQueuesKey, JSON.stringify(next));
         } else {
           localStorage.removeItem(destinationQueuesKey);
+        }
+        if (targetEnv === 'Cloud') {
+          const selectedPaths: Record<string, string> = {};
+          next.forEach((queueName) => {
+            const path = destinationQueuePaths[queueName];
+            if (path) {
+              selectedPaths[queueName] = path;
+            }
+          });
+          localStorage.setItem(destinationQueuePathsKey, JSON.stringify(selectedPaths));
         }
       }
       return next;
@@ -992,8 +1015,21 @@ export default function DestinationPage() {
         kubeconfigPath,
         namespace: form.namespace.trim(),
         queueManagerName,
-        mqscFilePath: `C:/Work/MQMigratorBackup/backupfromsource/${selectedQueue}.mqsc`,
+        mqscFilePath: '',
       };
+      const storedPaths =
+        typeof window !== 'undefined'
+          ? (JSON.parse(localStorage.getItem(destinationQueuePathsKey) ?? '{}') as Record<
+              string,
+              string
+            >)
+          : {};
+      mqscPayload.mqscFilePath = storedPaths[selectedQueue] ?? '';
+      if (!mqscPayload.mqscFilePath) {
+        console.warn('Missing MQSC file path for selected queue manager.');
+        setMigrationDone(false);
+        return;
+      }
       console.log('MQ load-mqsc request:', mqscPayload);
       const mqscResponse = await fetch(apiUrl('/mq/load-mqsc'), {
         method: 'POST',
@@ -1255,7 +1291,7 @@ export default function DestinationPage() {
               if (!item || typeof item !== 'object') {
                 return null;
               }
-              const record = item as { name?: string; state?: string };
+              const record = item as { name?: string; state?: string; path?: string };
               if (!record.name) {
                 return null;
               }
@@ -1265,12 +1301,26 @@ export default function DestinationPage() {
               };
             })
             .filter(Boolean) as QueueManager[];
+          const queuePaths: Record<string, string> = {};
+          if (targetEnv === 'Cloud') {
+            data.forEach((item) => {
+              if (!item || typeof item !== 'object') {
+                return;
+              }
+              const record = item as { name?: string; path?: string };
+              if (record.name && record.path) {
+                queuePaths[String(record.name)] = String(record.path);
+              }
+            });
+          }
           setDestinationQueues(mapped);
+          setDestinationQueuePaths(queuePaths);
           setDestinationSelectedQueues((prev) =>
             prev.filter((name) => mapped.some((queue) => queue.name === name)),
           );
         } else {
           setDestinationQueues([]);
+          setDestinationQueuePaths({});
         }
       } catch (error) {
         if ((error as { name?: string }).name !== 'AbortError') {
@@ -1282,7 +1332,7 @@ export default function DestinationPage() {
     fetchDestinationQueues();
 
     return () => controller.abort();
-  }, [connectionStatus]);
+  }, [connectionStatus, targetEnv]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -1713,7 +1763,7 @@ export default function DestinationPage() {
             </div>
             <ScrollArea className="flex-1 min-h-0 pr-1" type="always">
               <div className="space-y-2">
-                {logLines.map((line, idx) => (
+                {[...logLines].reverse().map((line, idx) => (
                   <div
                     key={`${line}-${idx}`}
                     className="flex items-start gap-3 bg-neutral-950/60 border border-neutral-800 rounded-lg px-3 py-2"

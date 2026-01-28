@@ -2399,7 +2399,7 @@ export default function SourcePage() {
             </div>
             <ScrollArea className="flex-1 min-h-0 pr-1" type="always">
               <div className="space-y-2">
-                {logLines.map((line, idx) => (
+              {[...logLines].reverse().map((line, idx) => (
                   <div
                     key={`${line}-${idx}`}
                     className="flex items-start gap-3 bg-neutral-950/60 border border-neutral-800 rounded-lg px-3 py-2"

@@ -86,6 +86,7 @@ export default function DestinationPage() {
   const [destinationQueues, setDestinationQueues] = useState<QueueManager[]>([]);
   const [destinationSelectedQueues, setDestinationSelectedQueues] = useState<string[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
+  const [destinationQueuePaths, setDestinationQueuePaths] = useState<Record<string, string>>({});
   const migrateSocketRef = useRef<WebSocket | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
@@ -100,6 +101,7 @@ export default function DestinationPage() {
   const destinationDropdownKey = 'destinationDropdowns';
   const destinationQueuesKey = 'destinationSelectedQueues';
   const destinationConnectedKey = 'destinationConnected';
+  const destinationQueuePathsKey = 'destinationQueuePaths';
   const [form, setForm] = useState({
     server: '',
     username: '',
@@ -309,7 +311,6 @@ export default function DestinationPage() {
   const destinationFieldsFilled =
     targetEnv.trim() &&
     targetPlatform.trim() &&
-    (targetEnv !== 'Cloud' || (computeModel.trim() && deploymentMode.trim())) &&
     (targetEnv === 'Cloud' ? cloudFieldsFilled : mqFieldsFilled);
 
   useEffect(() => {
@@ -353,6 +354,17 @@ export default function DestinationPage() {
           const parsedQueues = JSON.parse(storedQueues);
           if (Array.isArray(parsedQueues)) {
             setDestinationSelectedQueues(parsedQueues);
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
+      const storedPaths = localStorage.getItem(destinationQueuePathsKey);
+      if (storedPaths) {
+        try {
+          const parsedPaths = JSON.parse(storedPaths);
+          if (parsedPaths && typeof parsedPaths === 'object') {
+            setDestinationQueuePaths(parsedPaths as Record<string, string>);
           }
         } catch {
           // ignore parse errors
@@ -463,8 +475,8 @@ export default function DestinationPage() {
   const isReadyToMigrate = connectionStatus === 'connected' && hasSelection;
   const canMigrate = isReadyToMigrate && !isMigrateStreaming;
   const canViewReport = migrationDone;
-  const step1Done = Boolean(destinationFieldsFilled);
-  const step2Done = step1Done && (connectionStatus === 'connected' || testDone);
+  const step1Done = Boolean(destinationFieldsFilled) || connectionStatus === 'connected';
+  const step2Done = step1Done && connectionStatus === 'connected';
   const step3Done = destinationSelectedQueues.length > 0;
   const step4Done = step3Done && migrationDone;
   const logLines = logs;
@@ -649,6 +661,16 @@ export default function DestinationPage() {
         } else {
           localStorage.removeItem(destinationQueuesKey);
         }
+        if (targetEnv === 'Cloud') {
+          const selectedPaths: Record<string, string> = {};
+          next.forEach((queueName) => {
+            const path = destinationQueuePaths[queueName];
+            if (path) {
+              selectedPaths[queueName] = path;
+            }
+          });
+          localStorage.setItem(destinationQueuePathsKey, JSON.stringify(selectedPaths));
+        }
       }
       return next;
     });
@@ -660,10 +682,33 @@ export default function DestinationPage() {
       setTestDone(false);
       setDestinationSelectedQueues([]);
       setDestinationQueues([]);
+      setDestinationQueuePaths({});
+      setLogs([]);
+      setMigrationDone(false);
+      setForm({
+        server: '',
+        username: '',
+        password: '',
+        backupDir: '',
+        clientId: '',
+        clientSecret: '',
+        tenantId: '',
+        subscriptionId: '',
+        resourceGroup: '',
+        clusterName: '',
+        namespace: '',
+      });
+      setTargetEnv('');
+      setTargetPlatform('');
+      setComputeModel('');
+      setDeploymentMode('');
       if (typeof window !== 'undefined') {
         localStorage.removeItem('destinationTestDone');
         localStorage.removeItem(destinationConnectedKey);
         localStorage.removeItem(destinationQueuesKey);
+        localStorage.removeItem(destinationFormKey);
+        localStorage.removeItem(destinationDropdownKey);
+        localStorage.removeItem(destinationQueuePathsKey);
       }
       return;
     }
@@ -1005,8 +1050,19 @@ export default function DestinationPage() {
         kubeconfigPath,
         namespace: form.namespace.trim(),
         queueManagerName,
-        mqscFilePath: `/MQMigratorBackup/backupfromsource/${selectedQueue}.mqsc`,
+        mqscFilePath:
+          targetEnv === 'Cloud' ? '' : `/MQMigratorBackup/backupfromsource/${selectedQueue}.mqsc`,
       };
+      if (targetEnv === 'Cloud') {
+        const storedPaths =
+          typeof window !== 'undefined'
+            ? (JSON.parse(localStorage.getItem(destinationQueuePathsKey) ?? '{}') as Record<
+                string,
+                string
+              >)
+            : {};
+        mqscPayload.mqscFilePath = storedPaths[selectedQueue] ?? '';
+      }
       console.log('MQ load-mqsc request:', mqscPayload);
       const mqscResponse = await fetch(apiUrl('/mq/load-mqsc'), {
         method: 'POST',
@@ -1081,8 +1137,9 @@ export default function DestinationPage() {
         setReportLoading(false);
         return;
       }
+      const summaryMode = targetEnv === 'Cloud' ? 'cloud' : 'vm';
       const response = await fetch(
-        `${apiUrl('/v1/destination/summary')}?accessToken=${encodeURIComponent(accessToken)}`,
+        `${apiUrl(`/v1/destination/summary?mode=${summaryMode}`)}?accessToken=${encodeURIComponent(accessToken)}`,
         {
         method: 'POST',
         headers: {
@@ -1244,8 +1301,9 @@ export default function DestinationPage() {
           setDestinationQueues([]);
           return;
         }
+        const backupFrom = targetEnv === 'Cloud' ? 'local' : 'shared';
         const response = await fetch(
-          apiUrl('/v1/destination/mq/list'),
+          apiUrl(`/v1/destination/mq/list?backupFrom=${backupFrom}`),
           {
             method: 'GET',
             headers: {
@@ -1271,7 +1329,7 @@ export default function DestinationPage() {
               if (!item || typeof item !== 'object') {
                 return null;
               }
-              const record = item as { name?: string; state?: string };
+              const record = item as { name?: string; state?: string; path?: string };
               if (!record.name) {
                 return null;
               }
@@ -1281,12 +1339,26 @@ export default function DestinationPage() {
               };
             })
             .filter(Boolean) as QueueManager[];
+          const queuePaths: Record<string, string> = {};
+          if (targetEnv === 'Cloud') {
+            data.forEach((item) => {
+              if (!item || typeof item !== 'object') {
+                return;
+              }
+              const record = item as { name?: string; path?: string };
+              if (record.name && record.path) {
+                queuePaths[String(record.name)] = String(record.path);
+              }
+            });
+          }
           setDestinationQueues(mapped);
+          setDestinationQueuePaths(queuePaths);
           setDestinationSelectedQueues((prev) =>
             prev.filter((name) => mapped.some((queue) => queue.name === name)),
           );
         } else {
           setDestinationQueues([]);
+          setDestinationQueuePaths({});
         }
       } catch (error) {
         if ((error as { name?: string }).name !== 'AbortError') {
@@ -1298,7 +1370,7 @@ export default function DestinationPage() {
     fetchDestinationQueues();
 
     return () => controller.abort();
-  }, [connectionStatus]);
+  }, [connectionStatus, targetEnv]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -1652,15 +1724,14 @@ export default function DestinationPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-[1.6fr_0.7fr] text-xs font-semibold text-gray-500 px-3 py-2">
+                  <div className="grid grid-cols-[1fr] text-xs font-semibold text-gray-500 px-3 py-2">
                     <span>Queue Manager</span>
-                    <span className="text-right">Report</span>
                   </div>
                   <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                     {visibleQueues.map((queue) => (
                       <div
                         key={queue.name}
-                        className="grid grid-cols-[1.6fr_0.7fr] items-center bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 hover:border-gray-300"
+                        className="grid grid-cols-[1fr] items-center bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 hover:border-gray-300"
                       >
                         <div className="flex items-center gap-2">
                           <input
@@ -1670,24 +1741,6 @@ export default function DestinationPage() {
                             className="h-4 w-4 accent-gray-500"
                           />
                           <span>{queue.name}</span>
-                        </div>
-                        <div
-                          className="text-right"
-                          title={!canViewReport ? 'Migrate to view summary of migration' : undefined}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleViewReport(queue.name)}
-                            aria-label={`View report for ${queue.name}`}
-                            disabled={!canViewReport}
-                            className={`text-sm font-semibold text-right ${
-                              canViewReport
-                                ? 'text-gray-600 hover:text-gray-700'
-                                : 'text-gray-400 cursor-not-allowed'
-                            }`}
-                          >
-                            View
-                          </button>
                         </div>
                       </div>
                     ))}
@@ -1748,14 +1801,17 @@ export default function DestinationPage() {
             </div>
             <ScrollArea className="flex-1 min-h-0 pr-1" type="always">
               <div className="space-y-2">
-                {logLines.map((line, idx) => (
+                {isMigrateStreaming && (
+                  <div className="flex items-center gap-2 bg-neutral-950/60 border border-neutral-800 rounded-lg px-3 py-2 text-emerald-200 font-mono text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Migration in progress...</span>
+                  </div>
+                )}
+                {[...logLines].reverse().map((line, idx) => (
                   <div
                     key={`${line}-${idx}`}
                     className="flex items-start gap-3 bg-neutral-950/60 border border-neutral-800 rounded-lg px-3 py-2"
                   >
-                    <span className="text-[11px] text-neutral-500 mt-1 font-semibold">
-                      #{String(idx + 1).padStart(2, '0')}
-                    </span>
                     <p className="text-emerald-200 font-mono text-sm leading-6">{line}</p>
                   </div>
                 ))}
@@ -1764,105 +1820,6 @@ export default function DestinationPage() {
           </div>
         </div>
       </div>
-
-      {showReportModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4 py-6">
-          <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full p-6 space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold text-gray-500">MQ Report</p>
-                <p className="text-lg font-semibold text-gray-800">
-                  {reportQueueName || 'Queue Manager'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleDownloadReport}
-                  disabled={!reportData || reportLoading}
-                  aria-label="Download MQ report"
-                  className={`p-2 rounded-lg border text-sm font-semibold ${
-                    reportData && !reportLoading
-                      ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                      : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  <Download className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCloseReportModal}
-                  className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-
-            {reportLoading ? (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Loading MQ report...
-              </div>
-            ) : reportError ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {reportError}
-              </div>
-            ) : reportData ? (
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 max-h-[60vh] overflow-y-auto space-y-3">
-                {reportSections.map((section) => {
-                  const sectionData = section.data;
-                  const items = sectionData?.listOfObjects ?? [];
-                  const isOpen = reportExpanded[section.key] ?? true;
-                  return (
-                    <div
-                      key={section.key}
-                      className="rounded-lg border border-gray-200 bg-white p-3"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleReportSection(section.key)}
-                        className="w-full flex items-center justify-between text-left"
-                        aria-expanded={isOpen}
-                      >
-                        <span className="text-sm font-semibold text-gray-800">
-                          {section.label} ({getReportCount(sectionData)})
-                        </span>
-                        <span className="text-xs font-mono text-gray-500">
-                          {isOpen ? '[-]' : '[+]'}
-                        </span>
-                      </button>
-                      {isOpen && (
-                        <ul className="mt-2 space-y-1 border-l border-gray-200 pl-4">
-                          {items.length ? (
-                            items.map((item) => (
-                              <li
-                                key={`${section.key}-${item.name}`}
-                                className="flex items-start gap-2 text-xs text-gray-700"
-                              >
-                                <span className="font-mono">{item.name}</span>
-                                {item.type ? (
-                                  <span className="text-gray-500">[{item.type}]</span>
-                                ) : null}
-                              </li>
-                            ))
-                          ) : (
-                            <li className="text-xs text-gray-500">No entries.</li>
-                          )}
-                        </ul>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                No report data loaded.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
 
       {isGuideOpen && guideRect && guideStepData ? (

@@ -1063,8 +1063,9 @@ export default function DestinationPage() {
         setReportLoading(false);
         return;
       }
+      const summaryMode = targetEnv === 'Cloud' ? 'cloud' : 'vm';
       const response = await fetch(
-        `${apiUrl('/v1/destination/summary?mode=cloud')}?accessToken=${encodeURIComponent(accessToken)}`,
+        `${apiUrl(`/v1/destination/summary?mode=${summaryMode}`)}?accessToken=${encodeURIComponent(accessToken)}`,
         {
         method: 'POST',
         headers: {
@@ -1226,8 +1227,9 @@ export default function DestinationPage() {
           setDestinationQueues([]);
           return;
         }
+        const backupFrom = targetEnv === 'Cloud' ? 'local' : 'shared';
         const response = await fetch(
-          apiUrl('/v1/destination/mq/list?backupFrom=local'),
+          apiUrl(`/v1/destination/mq/list?backupFrom=${backupFrom}`),
           {
             method: 'GET',
             headers: {

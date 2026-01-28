@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 
-import { ArrowLeft, CloudUpload, Download, Link2, Loader2, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, ChevronDown, CloudUpload, Download, FileText, Link2, Loader2, RefreshCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiUrl, wsUrl } from '../../lib/config';
 import {
@@ -96,6 +96,7 @@ export default function SourcePage() {
   const [reportData, setReportData] = useState<MqReportResponse | null>(null);
   const [reportQueueName, setReportQueueName] = useState('');
   const [reportExpanded, setReportExpanded] = useState<Record<string, boolean>>({});
+  const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
 
   const [form, setForm] = useState({
 
@@ -1243,6 +1244,7 @@ export default function SourcePage() {
     setReportQueueName('');
     setReportExpanded({});
     setReportLoading(false);
+    setIsDownloadMenuOpen(false);
   };
 
   const handleDownloadReport = () => {
@@ -1263,6 +1265,54 @@ export default function SourcePage() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+  };
+
+  const escapeCsvValue = (value: string) => {
+    if (/[",\n]/.test(value)) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  };
+
+  const handleDownloadExcel = () => {
+    if (!reportData) {
+      setReportError('No report data to download.');
+      return;
+    }
+    const rows: string[] = ['Section,Name,Type'];
+    reportSections.forEach((section) => {
+      const sectionData = section.data;
+      const items = sectionData?.listOfObjects ?? [];
+      if (items.length === 0) {
+        rows.push(`${escapeCsvValue(section.label)},${escapeCsvValue('No entries')},`);
+        return;
+      }
+      items.forEach((item) => {
+        rows.push(
+          `${escapeCsvValue(section.label)},${escapeCsvValue(item.name)},${escapeCsvValue(
+            item.type ?? '',
+          )}`,
+        );
+      });
+    });
+    const csvBlob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(csvBlob);
+    const safeName = reportQueueName
+      ? reportQueueName.replace(/[^A-Za-z0-9_.-]+/g, '_')
+      : 'mq_report';
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${safeName}_report.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const openReportForQueue = (queueName: string) => {
+    if (!queueName) return;
+    setIsDownloadMenuOpen(false);
+    handleViewReport(queueName);
   };
 
 
@@ -2262,7 +2312,7 @@ export default function SourcePage() {
 
             </div>
 
-            <div className="flex flex-col gap-2 mb-4">
+            <div className="flex items-start justify-between gap-4 mb-4">
 
               <div className="flex-1 min-w-0">
 
@@ -2275,6 +2325,18 @@ export default function SourcePage() {
                 </p>
 
               </div>
+
+              {backupDone && selectedQueues.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => openReportForQueue(reportQueueName || selectedQueues[0])}
+                  className="h-9 w-9 rounded-full border border-gray-300 text-gray-600 hover:text-gray-800 hover:border-gray-400 flex items-center justify-center"
+                  aria-label="Open MQ reports"
+                  title="Open MQ reports"
+                >
+                  <FileText className="w-4 h-4" />
+                </button>
+              )}
 
             </div>
 
@@ -2524,26 +2586,67 @@ export default function SourcePage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4 py-6">
           <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full p-6 space-y-4">
             <div className="flex items-start justify-between gap-4">
-              <div>
+              <div className="space-y-2">
                 <p className="text-xs font-semibold text-gray-500">MQ Report</p>
-                <p className="text-lg font-semibold text-gray-800">
-                  {reportQueueName || 'Queue Manager'}
-                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-lg font-semibold text-gray-800">
+                    {reportQueueName || 'Queue Manager'}
+                  </p>
+                  <select
+                    value={reportQueueName || selectedQueues[0] || ''}
+                    onChange={(event) => openReportForQueue(event.target.value)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-200"
+                  >
+                    {selectedQueues.map((queue) => (
+                      <option key={queue} value={queue}>
+                        {queue}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleDownloadReport}
-                  disabled={!reportData || reportLoading}
-                  aria-label="Download MQ report"
-                  className={`p-2 rounded-lg border text-sm font-semibold ${
-                    reportData && !reportLoading
-                      ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                      : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  <Download className="w-4 h-4" />
-                </button>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsDownloadMenuOpen((prev) => !prev)}
+                    disabled={!reportData || reportLoading}
+                    aria-label="Download MQ report"
+                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                      reportData && !reportLoading
+                        ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <Download className="w-4 h-4" />
+                    Download
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                  {isDownloadMenuOpen && reportData && !reportLoading && (
+                    <div className="absolute right-0 mt-2 w-36 rounded-lg border border-gray-200 bg-white shadow-lg z-10">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsDownloadMenuOpen(false);
+                          handleDownloadReport();
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        PDF
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsDownloadMenuOpen(false);
+                          handleDownloadExcel();
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Excel
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={handleCloseReportModal}

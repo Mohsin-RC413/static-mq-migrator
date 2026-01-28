@@ -934,15 +934,11 @@ export default function DestinationPage() {
             : 'Migration failed.';
 
         if (isSuccess) {
-          setToastMessage(message);
-          setToastTone('success');
           setMigrationDone(true);
           if (typeof window !== 'undefined') {
             localStorage.setItem('destinationMigrationDone', 'true');
           }
         } else {
-          setToastMessage(message);
-          setToastTone('error');
           setMigrationDone(false);
           if (typeof window !== 'undefined') {
             localStorage.removeItem('destinationMigrationDone');
@@ -1094,15 +1090,11 @@ export default function DestinationPage() {
           : 'Migration failed.';
 
       if (mqscSuccess) {
-        setToastMessage(mqscMessage);
-        setToastTone('success');
         setMigrationDone(true);
         if (typeof window !== 'undefined') {
           localStorage.setItem('destinationMigrationDone', 'true');
         }
       } else {
-        setToastMessage(mqscMessage);
-        setToastTone('error');
         setMigrationDone(false);
         if (typeof window !== 'undefined') {
           localStorage.removeItem('destinationMigrationDone');
@@ -1110,8 +1102,6 @@ export default function DestinationPage() {
       }
     } catch (error) {
       console.error('Migration error:', error);
-      setToastMessage('Migration failed.');
-      setToastTone('error');
       setMigrationDone(false);
       if (typeof window !== 'undefined') {
         localStorage.removeItem('destinationMigrationDone');

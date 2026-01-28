@@ -2621,26 +2621,34 @@ export default function SourcePage() {
                   <p className="text-lg font-semibold text-gray-800">
                     {reportQueueName || 'Queue Manager'}
                   </p>
-                  <select
+                  <Select
                     value={reportQueueName || lastBackupQueues[0] || ''}
-                    onChange={(event) => openReportForQueue(event.target.value)}
+                    onValueChange={(value) => openReportForQueue(value)}
                     disabled={lastBackupQueues.length === 0}
-                    className={`rounded-lg border px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 ${
-                      lastBackupQueues.length === 0
-                        ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'border-gray-300 bg-white text-gray-700'
-                    }`}
                   >
-                    {lastBackupQueues.length === 0 ? (
-                      <option value="">No reports</option>
-                    ) : (
-                      lastBackupQueues.map((queue) => (
-                        <option key={queue} value={queue}>
-                          {queue}
-                        </option>
-                      ))
-                    )}
-                  </select>
+                    <SelectTrigger
+                      className={`h-9 rounded-lg border px-3 text-sm ${
+                        lastBackupQueues.length === 0
+                          ? 'border-gray-200 bg-gray-100 text-gray-400'
+                          : 'border-gray-300 bg-white text-gray-700'
+                      }`}
+                    >
+                      <SelectValue placeholder="No reports" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-lg border border-gray-200 bg-white text-gray-800">
+                      {lastBackupQueues.length === 0 ? (
+                        <SelectItem value="" disabled>
+                          No reports
+                        </SelectItem>
+                      ) : (
+                        lastBackupQueues.map((queue) => (
+                          <SelectItem key={queue} value={queue}>
+                            {queue}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="flex items-center gap-2">

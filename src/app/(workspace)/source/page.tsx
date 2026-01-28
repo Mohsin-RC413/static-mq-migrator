@@ -86,6 +86,7 @@ export default function SourcePage() {
   const [migrationDone, setMigrationDone] = useState(false);
 
   const [selectedQueues, setSelectedQueues] = useState<string[]>([]);
+  const [lastBackupQueues, setLastBackupQueues] = useState<string[]>([]);
 
   const [logs, setLogs] = useState<string[]>([]);
   const backupSocketRef = useRef<WebSocket | null>(null);
@@ -138,6 +139,7 @@ export default function SourcePage() {
   const sourceSftpKey = 'sourceSftp';
 
   const sourceScpKey = 'sourceScp';
+  const lastBackupQueuesKey = 'sourceLastBackupQueues';
 
   const [isTransitioning] = useState(false);
 
@@ -522,6 +524,7 @@ export default function SourcePage() {
     const storedConnected = localStorage.getItem('sourceConnected');
 
     const storedSelected = localStorage.getItem('selectedQueues');
+    const storedLastBackup = localStorage.getItem(lastBackupQueuesKey);
 
     const loginToast = localStorage.getItem('loginToast');
 
@@ -555,6 +558,16 @@ export default function SourcePage() {
 
       }
 
+    }
+    if (storedLastBackup) {
+      try {
+        const parsedLast = JSON.parse(storedLastBackup);
+        if (Array.isArray(parsedLast)) {
+          setLastBackupQueues(parsedLast);
+        }
+      } catch {
+        // ignore parse errors
+      }
     }
 
     if (loginToast) {
@@ -1128,9 +1141,11 @@ export default function SourcePage() {
           localStorage.setItem('backupDone', 'true');
 
           localStorage.setItem('selectedQueues', JSON.stringify(selectedQueues));
+          localStorage.setItem(lastBackupQueuesKey, JSON.stringify(selectedQueues));
 
         }
 
+        setLastBackupQueues(selectedQueues);
         setShowBackupModal(true);
 
       } else {
@@ -1310,9 +1325,12 @@ export default function SourcePage() {
   };
 
   const openReportForQueue = (queueName: string) => {
-    if (!queueName) return;
+    const availableQueues = lastBackupQueues;
+    const targetQueue =
+      queueName && availableQueues.includes(queueName) ? queueName : availableQueues[0];
+    if (!targetQueue) return;
     setIsDownloadMenuOpen(false);
-    handleViewReport(queueName);
+    handleViewReport(targetQueue);
   };
 
 
@@ -1320,6 +1338,7 @@ export default function SourcePage() {
   const hasSelection = selectedQueues.length > 0;
 
   const isBackupDisabled = isBackupStreaming || !hasSelection;
+  const canOpenReport = backupDone && lastBackupQueues.length > 0 && !isBackupStreaming;
 
   const logLines = logs;
 
@@ -1537,8 +1556,10 @@ export default function SourcePage() {
         localStorage.removeItem(sourceScpKey);
 
         localStorage.removeItem('selectedQueues');
+        localStorage.removeItem(lastBackupQueuesKey);
 
         setSelectedQueues([]);
+        setLastBackupQueues([]);
 
       }
 
@@ -2326,17 +2347,22 @@ export default function SourcePage() {
 
               </div>
 
-              {backupDone && selectedQueues.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => openReportForQueue(reportQueueName || selectedQueues[0])}
-                  className="h-9 w-9 rounded-full border border-gray-300 text-gray-600 hover:text-gray-800 hover:border-gray-400 flex items-center justify-center"
-                  aria-label="Open MQ reports"
-                  title="Open MQ reports"
-                >
-                  <FileText className="w-4 h-4" />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() =>
+                  openReportForQueue(reportQueueName || lastBackupQueues[0] || '')
+                }
+                disabled={!canOpenReport}
+                className={`h-9 w-9 rounded-full border flex items-center justify-center ${
+                  canOpenReport
+                    ? 'border-gray-300 text-gray-600 hover:text-gray-800 hover:border-gray-400'
+                    : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+                aria-label="Open MQ reports"
+                title="Open MQ reports"
+              >
+                <FileText className="w-4 h-4" />
+              </button>
 
             </div>
 
@@ -2405,15 +2431,18 @@ export default function SourcePage() {
                               <div className="text-gray-600 text-sm">{queue.state || 'Unknown'}</div>
 
                               <button
-
                                 type="button"
-
                                 onClick={() => handleViewReport(queue.name)}
                                 aria-label={`View report for ${queue.name}`}
-                                className="text-gray-600 text-sm font-semibold text-right hover:text-gray-700"
-
+                                disabled={
+                                  !canOpenReport || !lastBackupQueues.includes(queue.name)
+                                }
+                                className={`text-sm font-semibold text-right ${
+                                  canOpenReport && lastBackupQueues.includes(queue.name)
+                                    ? 'text-gray-600 hover:text-gray-700'
+                                    : 'text-gray-400 cursor-not-allowed'
+                                }`}
                               >
-
                                 View
 
                               </button>
@@ -2593,15 +2622,24 @@ export default function SourcePage() {
                     {reportQueueName || 'Queue Manager'}
                   </p>
                   <select
-                    value={reportQueueName || selectedQueues[0] || ''}
+                    value={reportQueueName || lastBackupQueues[0] || ''}
                     onChange={(event) => openReportForQueue(event.target.value)}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-200"
+                    disabled={lastBackupQueues.length === 0}
+                    className={`rounded-lg border px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 ${
+                      lastBackupQueues.length === 0
+                        ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'border-gray-300 bg-white text-gray-700'
+                    }`}
                   >
-                    {selectedQueues.map((queue) => (
-                      <option key={queue} value={queue}>
-                        {queue}
-                      </option>
-                    ))}
+                    {lastBackupQueues.length === 0 ? (
+                      <option value="">No reports</option>
+                    ) : (
+                      lastBackupQueues.map((queue) => (
+                        <option key={queue} value={queue}>
+                          {queue}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
               </div>
